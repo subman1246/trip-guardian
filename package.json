@@ -1,0 +1,20 @@
+{
+  "name": "trip-guardian",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Autonomous travel agent that defends a live itinerary and a fixed budget in real time.",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "world": "tsx scripts/show-world.ts",
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "tsx": "^4.20.3",
+    "typescript": "^5.9.2"
+  }
+}

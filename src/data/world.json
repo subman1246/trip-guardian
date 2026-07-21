@@ -1,0 +1,152 @@
+{
+  "city": "Jaipur, Rajasthan",
+  "currency": "INR",
+  "tripLengthDays": 2,
+
+  "options": [
+    {
+      "id": "t1",
+      "category": "transport",
+      "name": "Ajmer Shatabdi Express (Delhi to Jaipur)",
+      "price": 1350,
+      "timeSlot": "Day 1 Morning",
+      "description": "Chair car, departs Delhi 06:05, reaches Jaipur before noon."
+    },
+    {
+      "id": "t2",
+      "category": "transport",
+      "name": "IndiGo 6E 2273 (Delhi to Jaipur)",
+      "price": 3600,
+      "timeSlot": "Day 1 Morning",
+      "description": "55 minute flight, fastest arrival, includes cabin bag."
+    },
+    {
+      "id": "t3",
+      "category": "transport",
+      "name": "Private Cab with Driver (2 days)",
+      "price": 2200,
+      "timeSlot": "Trip",
+      "description": "Air conditioned sedan on call for both days, fuel included."
+    },
+    {
+      "id": "t4",
+      "category": "transport",
+      "name": "Auto Rickshaw Day Pass (2 days)",
+      "price": 800,
+      "timeSlot": "Trip",
+      "description": "Metered autos on demand across the Pink City, no waiting."
+    },
+
+    {
+      "id": "s1",
+      "category": "stay",
+      "name": "Zostel Jaipur (Shared Dorm Bed)",
+      "price": 1100,
+      "timeSlot": "Trip",
+      "nightsCovered": 1,
+      "description": "Backpacker hostel near Ajmeri Gate, rooftop cafe, dorm bunk."
+    },
+    {
+      "id": "s2",
+      "category": "stay",
+      "name": "Hotel Pearl Palace (Heritage Room)",
+      "price": 2800,
+      "timeSlot": "Trip",
+      "nightsCovered": 1,
+      "description": "Mid range favourite off Hathroi Fort road, with breakfast."
+    },
+    {
+      "id": "s3",
+      "category": "stay",
+      "name": "Alsisar Haveli (Heritage Suite)",
+      "price": 5400,
+      "timeSlot": "Trip",
+      "nightsCovered": 1,
+      "description": "Restored 19th century haveli with a quiet courtyard pool."
+    },
+
+    {
+      "id": "a1",
+      "category": "activity",
+      "name": "Amber Fort Guided Tour",
+      "price": 1200,
+      "timeSlot": "Day 1 Afternoon",
+      "description": "Three hour walk of Sheesh Mahal and Ganesh Pol, with guide."
+    },
+    {
+      "id": "a2",
+      "category": "activity",
+      "name": "City Palace and Museum Entry",
+      "price": 700,
+      "timeSlot": "Day 1 Afternoon",
+      "description": "Self paced visit to the royal apartments and textile hall."
+    },
+    {
+      "id": "a3",
+      "category": "activity",
+      "name": "Chokhi Dhani Village Dinner",
+      "price": 1400,
+      "timeSlot": "Day 1 Evening",
+      "description": "Folk dance, camel ride and unlimited Rajasthani thali."
+    },
+    {
+      "id": "a4",
+      "category": "activity",
+      "name": "Nahargarh Fort Sunset Viewpoint",
+      "price": 400,
+      "timeSlot": "Day 1 Evening",
+      "description": "Entry ticket plus chai at Padao, the city lights up below."
+    },
+    {
+      "id": "a5",
+      "category": "activity",
+      "name": "Hawa Mahal and Jantar Mantar Walk",
+      "price": 600,
+      "timeSlot": "Day 2 Morning",
+      "description": "Two monument entries plus a walk through the old bazaars."
+    },
+    {
+      "id": "a6",
+      "category": "activity",
+      "name": "Hot Air Balloon Ride over Amber",
+      "price": 3200,
+      "timeSlot": "Day 2 Morning",
+      "description": "Sunrise flight over Amber Fort and Jal Mahal, one hour up."
+    },
+    {
+      "id": "a7",
+      "category": "activity",
+      "name": "Block Printing Workshop in Sanganer",
+      "price": 900,
+      "timeSlot": "Day 2 Afternoon",
+      "description": "Hands on session with a printing family, take fabric home."
+    },
+    {
+      "id": "a8",
+      "category": "activity",
+      "name": "Johari Bazaar Street Food Crawl",
+      "price": 500,
+      "timeSlot": "Day 2 Afternoon",
+      "description": "Six tastings, from Rawat kachori to Lassiwala lassi."
+    }
+  ],
+
+  "startingItinerary": [
+    { "timeSlot": "Day 1 Morning", "optionId": "t1" },
+    { "timeSlot": "Day 1 Afternoon", "optionId": "a1" },
+    { "timeSlot": "Day 1 Evening", "optionId": "a3" },
+    { "timeSlot": "Day 2 Morning", "optionId": "a5" },
+    { "timeSlot": "Day 2 Afternoon", "optionId": "a7" },
+    { "timeSlot": "Trip", "optionId": "s2" },
+    { "timeSlot": "Trip", "optionId": "t3" }
+  ],
+
+  "budget": {
+    "totalINR": 15000,
+    "allocations": {
+      "transport": 4000,
+      "stay": 5000,
+      "activity": 6000
+    }
+  }
+}
