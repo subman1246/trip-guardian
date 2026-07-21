@@ -60,6 +60,12 @@ export interface Option {
   description: string;
   /** Stays only: how many nights the price covers. Omitted for other categories. */
   nightsCovered?: number;
+  /**
+   * Whether this option can still be booked. Absent means available, so the
+   * world file does not have to spell it out for every entry. Disruptions flip
+   * this to false when a venue closes or an activity is cancelled.
+   */
+  available?: boolean;
 }
 
 /**
@@ -109,18 +115,28 @@ export interface TripState {
   budget: BudgetState;
 }
 
-/** The kinds of trouble the world can throw at the traveller. */
-export type DisruptionKind = "activity_cancelled" | "price_spike" | "venue_closed";
+/**
+ * The kinds of trouble (and luck) the world can throw at the traveller.
+ * Every kind targets exactly one option, which keeps the engine simple.
+ */
+export type DisruptionKind =
+  | "activity_cancelled"
+  | "price_spike"
+  | "venue_closed"
+  | "price_drop";
 
 /**
- * A single disruption event. Disruptions are triggered in a later prompt, the
- * type lives here now so the world shape is settled up front.
+ * A single disruption event. The catalogue of concrete events lives in
+ * src/data/disruptions.json so they can be fired on demand.
  *
  * Which fields matter depends on kind:
- *   - "activity_cancelled": optionId is the activity that is off.
- *   - "venue_closed": optionId is the option whose venue shut, timeSlot is the
- *     slot it leaves empty.
- *   - "price_spike": optionId plus newPrice, the new integer INR price.
+ *   - "activity_cancelled": optionId is the booked activity that is off. It is
+ *     marked unavailable and dropped from the itinerary, leaving the slot empty.
+ *   - "venue_closed": optionId is the option whose venue shut. It is marked
+ *     unavailable whether or not it was booked, so it can also kill a fallback
+ *     the agent was counting on.
+ *   - "price_spike" and "price_drop": optionId plus newPrice, the new integer
+ *     INR price. A spike can push a category over its allocation.
  */
 export interface Disruption {
   id: string;

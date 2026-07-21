@@ -9,6 +9,7 @@
   },
   "scripts": {
     "world": "tsx scripts/show-world.ts",
+    "tools-demo": "tsx scripts/tools-demo.ts",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit"
   },

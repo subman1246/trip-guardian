@@ -16,14 +16,14 @@ import {
 import { getOption, sortItinerary } from "./loader.js";
 import { formatINR } from "./money.js";
 
-/** Total width of the printed block. */
-const WIDTH = 74;
+/** Total width of the printed block. Everything else lines up against this. */
+export const WIDTH = 74;
 
 /** Left indent used for an itinerary item's category tag. */
 const TAG_WIDTH = 12;
 
 /** Keep long text inside the frame so the layout never wraps in a terminal. */
-function clip(text: string, max: number): string {
+export function clip(text: string, max: number): string {
   return text.length <= max ? text : text.slice(0, max - 3) + "...";
 }
 
@@ -33,13 +33,48 @@ function slotLabel(slot: TimeSlot): string {
 }
 
 /** Left text, right text, dots of space in between, padded to WIDTH. */
-function spread(left: string, right: string, width = WIDTH): string {
+export function spread(left: string, right: string, width = WIDTH): string {
   const gap = Math.max(1, width - left.length - right.length);
   return left + " ".repeat(gap) + right;
 }
 
-function rule(char = "-"): string {
+export function rule(char = "-"): string {
   return char.repeat(WIDTH);
+}
+
+/** Break a paragraph into lines that fit the frame, splitting on spaces only. */
+export function wrap(text: string, width = WIDTH, indent = ""): string[] {
+  const limit = Math.max(20, width - indent.length);
+  const lines: string[] = [];
+  let line = "";
+
+  for (const word of text.split(/\s+/).filter((w) => w.length > 0)) {
+    if (line.length === 0) {
+      line = word;
+    } else if (line.length + 1 + word.length <= limit) {
+      line += " " + word;
+    } else {
+      lines.push(indent + line);
+      line = word;
+    }
+  }
+  if (line.length > 0) lines.push(indent + line);
+  return lines;
+}
+
+/**
+ * A bullet whose continuation lines hang under the text, not under the marker.
+ * Used for lists of actions and of changes.
+ */
+export function bulletLines(
+  text: string,
+  marker = "- ",
+  indent = "  ",
+  width = WIDTH,
+): string[] {
+  const hang = indent + " ".repeat(marker.length);
+  const wrapped = wrap(text, width - indent.length - marker.length);
+  return wrapped.map((line, index) => (index === 0 ? indent + marker + line : hang + line));
 }
 
 /** Build the whole report as a string, so callers can print it or reuse it. */
@@ -78,7 +113,18 @@ export function formatTripState(state: TripState, world: World): string {
   lines.push(spread("ITINERARY TOTAL", formatINR(state.budget.totalSpent)));
   lines.push("");
 
-  // Budget table.
+  lines.push(formatBudget(state));
+
+  return lines.join("\n");
+}
+
+/**
+ * Just the budget table. Split out so a caller that only moved money (a
+ * reallocation) can show the change without reprinting the whole itinerary.
+ */
+export function formatBudget(state: TripState): string {
+  const lines: string[] = [];
+
   lines.push("BUDGET");
   lines.push(rule());
   lines.push(budgetRow("CATEGORY", "ALLOCATED", "SPENT", "REMAINING"));
@@ -156,8 +202,9 @@ export function formatCatalogue(world: World, state: TripState): string {
     lines.push(rule());
 
     for (const option of inCategory) {
-      // A marker so it is obvious which options are already in the plan.
-      const marker = chosen.has(option.id) ? "*" : " ";
+      // A marker so it is obvious which options are in the plan and which a
+      // disruption has closed. Closed wins, a closed option cannot be booked.
+      const marker = option.available === false ? "x" : chosen.has(option.id) ? "*" : " ";
       const name = `${marker} ${option.id.padEnd(4)}${option.name}`;
       const slot = option.timeSlot === "Trip" ? "Whole Trip" : option.timeSlot;
       // 46 + 10 + 3 + 15 lands exactly on WIDTH.
@@ -166,7 +213,7 @@ export function formatCatalogue(world: World, state: TripState): string {
   }
 
   lines.push("");
-  lines.push("* = currently in the itinerary");
+  lines.push("* = currently in the itinerary,  x = closed by a disruption");
   lines.push(rule("="));
 
   return lines.join("\n");

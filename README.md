@@ -11,15 +11,21 @@ Built for a hackathon, Track A (Agentic AI).
 
 ## Status
 
-Prompt 1 of 4 is done: **the mock world**. The travel world is a small handmade
-JSON dataset, there is no external data source and no booking API. The agent
-reasoning that operates on this world arrives in prompt 3.
+Prompts 1 and 2 of 4 are done.
+
+- **Prompt 1, the mock world.** A small handmade JSON dataset. No external data
+  source, no booking API.
+- **Prompt 2, the tools and the disruption engine.** The four functions the agent
+  will call, plus the events it will react to. No AI yet, these are the hands.
+
+Prompt 3 adds the reasoning loop that decides which tools to call.
 
 ## Run it
 
 ```bash
 npm install
 npm run world       # load the world and print the starting trip state
+npm run tools-demo  # drive the tools and disruptions through a fixed script
 npm run typecheck   # tsc --noEmit
 ```
 
@@ -28,15 +34,43 @@ npm run typecheck   # tsc --noEmit
 ```
 src/
   data/
-    types.ts       every type in the world (Option, TripState, Budget, Disruption)
-    world.json     the handmade mock dataset for Jaipur
+    types.ts          every type in the world (Option, TripState, Budget, Disruption)
+    world.json        the handmade mock dataset for Jaipur
+    disruptions.json  the catalogue of events that can be fired
   world/
-    loader.ts      reads and validates the JSON, builds and recomputes TripState
-    printer.ts     pretty prints the itinerary, the budget and the option catalogue
-    money.ts       whole rupee helpers and INR formatting
+    loader.ts         reads and validates the JSON, builds and recomputes TripState
+    state.ts          the immutability rule, and the helpers that enforce it
+    printer.ts        pretty prints the itinerary, budget and option catalogue
+    money.ts          whole rupee helpers and INR formatting
+  tools/
+    search.ts         search_alternatives, read only
+    rebook.ts         rebook_slot
+    reallocate.ts     reallocate_budget
+    notify.ts         notify_user, read only
+    types.ts          the ToolResult shape every tool returns
+    format.ts         turning tool results into console output
+    index.ts          the four tools in one import
+  events/
+    engine.ts         loads disruptions and applies them to the world
 scripts/
-  show-world.ts    npm run world, the verification script
+  show-world.ts       npm run world
+  tools-demo.ts       npm run tools-demo
 ```
+
+## State discipline
+
+State is **immutable**. No tool and no disruption edits a TripState or a World in
+place, they return new ones. That gives the agent a free undo (keep the old
+reference) and a clean before/after for the demo.
+
+Derived money is never written by hand. Every change to the itinerary or to the
+allocations goes back through `computeBudgetState`, so spent, remaining and
+totals can never drift away from the itinerary.
+
+Tools never throw for an expected problem and never print. They return a
+`ToolResult`, which is either a success with details or a failure with a machine
+readable reason. A failure returns the unchanged state, so a rejected call can
+never damage the trip.
 
 ## Conventions
 

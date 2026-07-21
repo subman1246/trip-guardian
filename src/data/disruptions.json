@@ -1,0 +1,44 @@
+[
+  {
+    "id": "d1",
+    "kind": "activity_cancelled",
+    "optionId": "a1",
+    "timeSlot": "Day 1 Afternoon",
+    "message": "Amber Fort is shut for a state ceremony. Your guided tour is cancelled and refunded."
+  },
+  {
+    "id": "d2",
+    "kind": "price_spike",
+    "optionId": "t3",
+    "newPrice": 3600,
+    "message": "A fuel surcharge landed. The two day private cab has been repriced."
+  },
+  {
+    "id": "d3",
+    "kind": "venue_closed",
+    "optionId": "a4",
+    "timeSlot": "Day 1 Evening",
+    "message": "The Nahargarh approach road is closed for repairs. The sunset viewpoint is off."
+  },
+  {
+    "id": "d4",
+    "kind": "price_spike",
+    "optionId": "s2",
+    "newPrice": 4200,
+    "message": "A wedding party has filled the city. Hotel Pearl Palace repriced your room."
+  },
+  {
+    "id": "d5",
+    "kind": "activity_cancelled",
+    "optionId": "a3",
+    "timeSlot": "Day 1 Evening",
+    "message": "Chokhi Dhani is fully booked tonight. Your table has been released."
+  },
+  {
+    "id": "d6",
+    "kind": "price_drop",
+    "optionId": "a6",
+    "newPrice": 2400,
+    "message": "The balloon operator has released last minute seats at a lower fare."
+  }
+]
