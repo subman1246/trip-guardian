@@ -85,6 +85,162 @@ body {
   color: var(--ink-faint);
 }
 
+/* ---------------------------------------------------------------- setup */
+
+.setup {
+  margin: 16px 24px 4px;
+  padding: 16px 18px;
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-radius: 10px;
+}
+
+.setup h2 {
+  margin: 0 0 12px;
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  font-weight: 600;
+}
+
+.setup-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.field span {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.field input {
+  font-family: var(--mono);
+  font-size: 14px;
+  width: 12ch;
+  padding: 7px 9px;
+  border-radius: 8px;
+  border: 1px solid var(--panel-edge);
+  background: var(--bg);
+  color: var(--ink);
+}
+
+#setup-days {
+  width: 6ch;
+}
+
+.field input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.field input:disabled {
+  opacity: 0.5;
+}
+
+.btn-build {
+  border-color: var(--accent);
+  background: #16283f;
+}
+
+.setup-hint {
+  flex: 1 1 34ch;
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-faint);
+  max-width: 70ch;
+}
+
+/* The feasibility refusal. Pure arithmetic, no model involved, so it is stated
+   plainly rather than dressed up as an error. */
+.setup-error {
+  margin: 14px 0 0;
+  padding: 11px 13px;
+  border-radius: 8px;
+  border: 1px solid #5a2a26;
+  background: #241513;
+  color: #ffb3ac;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.setup-summary {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.setup-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  align-items: baseline;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.setup-head strong {
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.setup-headroom {
+  color: var(--ok);
+  font-family: var(--mono);
+}
+
+.setup-table {
+  display: grid;
+  grid-template-columns: max-content repeat(4, max-content);
+  gap: 5px 22px;
+  font-family: var(--mono);
+  font-size: 12.5px;
+}
+
+.setup-th {
+  font-family: var(--sans);
+  font-size: 10.5px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.setup-cat {
+  font-family: var(--sans);
+}
+
+.setup-cat.transport { color: var(--transport); }
+.setup-cat.stay { color: var(--stay); }
+.setup-cat.activity { color: var(--activity); }
+
+.setup-room {
+  color: var(--ok);
+}
+
+.setup-rule {
+  margin: 0;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  max-width: 110ch;
+}
+
 /* ------------------------------------------------------------- controls */
 
 .controls {
@@ -106,8 +262,31 @@ body {
 .scenario-buttons {
   display: flex;
   flex-wrap: wrap;
+  align-items: flex-start;
   gap: 8px;
   flex: 1 1 auto;
+}
+
+.scenario-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 34ch;
+}
+
+/* A scenario that cannot run on the current trip. The reason sits under the
+   button as well as on hover, so it reads without a mouse. */
+.btn.btn-off {
+  border-style: dashed;
+  text-decoration: line-through;
+  text-decoration-color: var(--ink-faint);
+}
+
+.scenario-reason {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--ink-faint);
+  padding: 0 2px;
 }
 
 .btn {

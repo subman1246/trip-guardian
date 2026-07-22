@@ -24,23 +24,42 @@
       "id": "t3",
       "category": "transport",
       "name": "Private Cab with Driver (2 days)",
+      "nameTemplate": "Private Cab with Driver ({n} day{s})",
+      "scalesPer": "day",
+      "unitPrice": 1100,
       "price": 2200,
       "timeSlot": "Trip",
-      "description": "Air conditioned sedan on call for both days, fuel included."
+      "description": "Air conditioned sedan on call every day of the trip, fuel included."
     },
     {
       "id": "t4",
       "category": "transport",
       "name": "Auto Rickshaw Day Pass (2 days)",
+      "nameTemplate": "Auto Rickshaw Day Pass ({n} day{s})",
+      "scalesPer": "day",
+      "unitPrice": 400,
       "price": 800,
       "timeSlot": "Trip",
       "description": "Metered autos on demand across the Pink City, no waiting."
+    },
+    {
+      "id": "t5",
+      "category": "transport",
+      "name": "Rented Scooter with Helmet (2 days)",
+      "nameTemplate": "Rented Scooter with Helmet ({n} day{s})",
+      "scalesPer": "day",
+      "unitPrice": 550,
+      "price": 1100,
+      "timeSlot": "Trip",
+      "description": "Activa from a Bani Park garage, fuel on you, park anywhere."
     },
 
     {
       "id": "s1",
       "category": "stay",
       "name": "Zostel Jaipur (Shared Dorm Bed)",
+      "scalesPer": "night",
+      "unitPrice": 1100,
       "price": 1100,
       "timeSlot": "Trip",
       "nightsCovered": 1,
@@ -50,6 +69,8 @@
       "id": "s2",
       "category": "stay",
       "name": "Hotel Pearl Palace (Heritage Room)",
+      "scalesPer": "night",
+      "unitPrice": 2800,
       "price": 2800,
       "timeSlot": "Trip",
       "nightsCovered": 1,
@@ -59,6 +80,8 @@
       "id": "s3",
       "category": "stay",
       "name": "Alsisar Haveli (Heritage Suite)",
+      "scalesPer": "night",
+      "unitPrice": 5400,
       "price": 5400,
       "timeSlot": "Trip",
       "nightsCovered": 1,
@@ -128,6 +151,116 @@
       "price": 500,
       "timeSlot": "Day 2 Afternoon",
       "description": "Six tastings, from Rawat kachori to Lassiwala lassi."
+    },
+
+    {
+      "id": "a9",
+      "category": "activity",
+      "name": "Amber Fort Light and Sound Show",
+      "price": 600,
+      "timeSlot": "Day 2 Evening",
+      "description": "An hour under the ramparts, the fort lit up and narrated."
+    },
+    {
+      "id": "a10",
+      "category": "activity",
+      "name": "Masala Chowk Open Air Food Court",
+      "price": 400,
+      "timeSlot": "Day 2 Evening",
+      "description": "Ram Niwas Garden stalls, pyaaz kachori and kulfi, eat as you go."
+    },
+    {
+      "id": "a11",
+      "category": "activity",
+      "name": "Rooftop Dinner on Hathroi Road",
+      "price": 1100,
+      "timeSlot": "Day 2 Evening",
+      "description": "Candlelit terrace under Hathroi Fort, laal maas and city lights."
+    },
+
+    {
+      "id": "a12",
+      "category": "activity",
+      "name": "Galtaji Monkey Temple Sunrise Walk",
+      "price": 350,
+      "timeSlot": "Day 3 Morning",
+      "description": "Uphill path to the spring fed kunds, the best light of the day."
+    },
+    {
+      "id": "a13",
+      "category": "activity",
+      "name": "Jal Mahal and Man Sagar Cycle Ride",
+      "price": 800,
+      "timeSlot": "Day 3 Morning",
+      "description": "Guided ride along the lake bund, cycle and helmet included."
+    },
+
+    {
+      "id": "a14",
+      "category": "activity",
+      "name": "Albert Hall Museum and Ram Niwas Garden",
+      "price": 450,
+      "timeSlot": "Day 3 Afternoon",
+      "description": "Indo Saracenic galleries, the Egyptian mummy, shaded garden after."
+    },
+    {
+      "id": "a15",
+      "category": "activity",
+      "name": "Jaigarh Fort and the Jaivana Cannon",
+      "price": 900,
+      "timeSlot": "Day 3 Afternoon",
+      "description": "Hilltop armoury above Amber, and the largest wheeled cannon made."
+    },
+
+    {
+      "id": "a16",
+      "category": "activity",
+      "name": "Raj Mandir Cinema Evening Screening",
+      "price": 500,
+      "timeSlot": "Day 3 Evening",
+      "description": "Balcony seat in the 1976 meringue auditorium, interval samosa."
+    },
+    {
+      "id": "a17",
+      "category": "activity",
+      "name": "Rajasthani Cooking Class with a Host Family",
+      "price": 1600,
+      "timeSlot": "Day 3 Evening",
+      "description": "Three hours in a home kitchen, gatte ki sabzi and bajra roti."
+    },
+
+    {
+      "id": "a18",
+      "category": "activity",
+      "name": "Sisodia Rani and Vidyadhar Gardens",
+      "price": 400,
+      "timeSlot": "Day 4 Morning",
+      "description": "Terraced Mughal gardens on the Agra road, quiet before the heat."
+    },
+    {
+      "id": "a19",
+      "category": "activity",
+      "name": "Abhaneri Step Well Half Day Excursion",
+      "price": 2400,
+      "timeSlot": "Day 4 Morning",
+      "description": "Chand Baori's 3,500 steps and Harshat Mata temple, car included."
+    },
+
+    {
+      "id": "a20",
+      "category": "activity",
+      "name": "Bapu Bazaar and Nehru Bazaar Craft Walk",
+      "price": 450,
+      "timeSlot": "Day 4 Afternoon",
+      "description": "Mojaris, block print quilts and lac bangles, with a local buyer."
+    },
+    {
+      "id": "a21",
+      "category": "activity",
+      "name": "Kanota Dam Picnic and Countryside Drive",
+      "price": 950,
+      "timeSlot": "Day 4 Afternoon",
+      "description": "An hour out of the city, packed lunch by the water, back by dusk."
     }
   ],
 

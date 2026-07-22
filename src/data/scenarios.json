@@ -27,12 +27,24 @@
     "id": "no-donor-left",
     "title": "The only replacement busts its category and nobody can lend",
     "disruptionIds": ["d8", "d9", "d10"],
-    "note": "The forced refusal. Day 2 Morning empties and the only option left for it is the Rs 3,200 balloon, which is Rs 700 more than activity has. The hotel spike leaves stay with Rs 100 spare and transport has Rs 450, so the whole trip can lend Rs 550 against a Rs 700 gap and reallocate_budget is refused whichever donor is asked. The cheap dorm that would have paid for it is sold out too. Nothing works until the agent spends less somewhere first, for example dropping the private cab to the auto pass, which frees real allocation, then reallocating, then rebooking."
+    "note": "The forced refusal. Day 2 Morning empties and the only option left for it is the Rs 3,200 balloon, which costs more than activity has left. At the same time the hotel spike leaves stay with almost nothing spare, so every donor emptied together still cannot cover the gap and reallocate_budget is refused whichever one is asked. The cheap dorm that would have paid for it is sold out too. Nothing works until the agent spends less somewhere first, for example dropping the private cab to the auto pass, which frees real allocation, then reallocating, then rebooking. It needs the Day 2 Morning walk, the Pearl Palace room and the Zostel dorm to all be in play, so it applies to a 2 day trip booked around them."
   },
   {
     "id": "double-hit",
     "title": "A cancelled tour and a hotel price spike at once",
     "disruptionIds": ["d1", "d4"],
     "note": "Two independent breaks in one go. The agent has to notice both, not stop after the first."
+  },
+  {
+    "id": "any-cancelled-plan",
+    "title": "Your first afternoon is cancelled (any trip)",
+    "disruptionIds": ["g1"],
+    "note": "Written against the slot rather than against one option id, so it hits whatever this trip actually booked for Day 1 Afternoon. It stays meaningful on a 1 day trip and on a 4 day trip alike."
+  },
+  {
+    "id": "any-price-shock",
+    "title": "Local transport and the room are both repriced (any trip with a stay)",
+    "disruptionIds": ["g2", "g3"],
+    "note": "Two spikes against whatever this trip booked for the whole visit: local transport goes up 65% and the room goes up 50%. The agent has to notice both. A 1 day trip books no room, so this one does not apply there."
   }
 ]

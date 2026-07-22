@@ -20,6 +20,12 @@ const els = {
   budgetTotal: document.getElementById("budget-total"),
   trace: document.getElementById("trace"),
   traceStatus: document.getElementById("trace-status"),
+  setupForm: document.getElementById("setup-form"),
+  setupDays: document.getElementById("setup-days"),
+  setupBudget: document.getElementById("setup-budget"),
+  setupSubmit: document.getElementById("setup-submit"),
+  setupError: document.getElementById("setup-error"),
+  setupSummary: document.getElementById("setup-summary"),
 };
 
 /** The scenario written to be refused. Flagged in the button row. */
@@ -51,6 +57,9 @@ function renderTrip(trip) {
   renderBudget(trip.budget);
   els.itineraryTotal.textContent = rupees(trip.itineraryTotal);
   els.budgetTotal.textContent = `${rupees(trip.budget.totalSpent)} of ${rupees(trip.budget.totalINR)}`;
+  // Only the endpoints that build a trip carry the setup block. A tool result
+  // mid run does not, and must not blank the panel.
+  if (trip.setup) renderSetup(trip.setup);
 }
 
 function renderItinerary(trip) {
@@ -134,6 +143,142 @@ function renderBudget(budget) {
     el("span", null, `${rupees(budget.totalRemaining)} of ${rupees(budget.totalINR)} unspent`),
   );
   els.budget.append(totals);
+}
+
+// ------------------------------------------------------------- the setup
+
+/**
+ * Show the trip that was constructed, and the arithmetic behind it, before any
+ * scenario is fired. Every number here was computed on the server from the
+ * catalogue. The page does no money maths of its own.
+ */
+function renderSetup(setup) {
+  els.setupDays.value = String(setup.days);
+  els.setupBudget.value = String(setup.totalINR);
+  els.setupDays.min = String(setup.minDays);
+  els.setupDays.max = String(setup.maxDays);
+
+  els.setupSummary.replaceChildren();
+
+  const head = el("div", "setup-head");
+  head.append(
+    el("strong", null, `${setup.days} day trip, ${setup.nights} night${setup.nights === 1 ? "" : "s"}`),
+    el("span", null, `${setup.requiredBookings} bookings`),
+    el("span", null, `${rupees(setup.startingSpendINR)} of ${rupees(setup.totalINR)} committed`),
+    el("span", "setup-headroom", `${rupees(setup.headroomINR)} held back (${setup.headroomPercent}%)`),
+  );
+  els.setupSummary.append(head);
+
+  const table = el("div", "setup-table");
+  table.append(
+    el("span", "setup-th", "category"),
+    el("span", "setup-th", "cheapest possible"),
+    el("span", "setup-th", "allocated"),
+    el("span", "setup-th", "starts at"),
+    el("span", "setup-th", "headroom"),
+  );
+  for (const row of setup.byCategory) {
+    table.append(
+      el("span", `setup-cat ${row.category}`, row.category),
+      el("span", null, rupees(row.floor)),
+      el("span", null, rupees(row.allocated)),
+      el("span", null, rupees(row.startingSpend)),
+      el("span", "setup-room", rupees(row.headroom)),
+    );
+  }
+  els.setupSummary.append(table);
+
+  const rules = el("ol", "setup-rule");
+  for (const line of setup.rule) rules.append(el("li", null, line));
+  els.setupSummary.append(rules);
+}
+
+/** Clear or show the feasibility refusal. Nothing is rebuilt when it shows. */
+function showSetupError(text) {
+  if (!text) {
+    els.setupError.hidden = true;
+    els.setupError.textContent = "";
+    return;
+  }
+  els.setupError.hidden = false;
+  els.setupError.textContent = text;
+}
+
+async function submitSetup(event) {
+  event.preventDefault();
+  if (running) return;
+
+  const days = Number(els.setupDays.value);
+  const budget = Number(els.setupBudget.value);
+
+  els.setupSubmit.disabled = true;
+  showSetupError("");
+
+  try {
+    const response = await fetch("/api/setup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ days, budget }),
+    });
+    const body = await response.json();
+
+    if (!response.ok) {
+      // 422 is the feasibility refusal: the request made sense and the money
+      // does not stretch. The old trip is left exactly as it was.
+      showSetupError(body.error);
+      return;
+    }
+
+    lastSlotSignature = new Map();
+    renderTrip(body);
+    await loadScenarios();
+    clearTrace();
+    els.trace.append(
+      el("p", "trace-empty", "Trip built. Fire a scenario above to watch the agent defend it."),
+    );
+    els.scenarioNote.textContent = "";
+    els.traceStatus.textContent = "idle";
+  } catch (error) {
+    showSetupError(`Could not reach the server: ${error.message}`);
+  } finally {
+    els.setupSubmit.disabled = false;
+  }
+}
+
+// ------------------------------------------------------------- scenarios
+
+/**
+ * Draw the scenario row. A scenario whose options are not booked on this trip
+ * is drawn disabled with the reason next to it, rather than being hidden, so it
+ * is obvious that it exists and why it cannot run right now.
+ */
+async function loadScenarios() {
+  const meta = await fetch("/api/scenarios").then((response) => response.json());
+  els.providerChip.textContent = `${meta.provider} / ${meta.model}`;
+  els.scenarioButtons.replaceChildren();
+
+  for (const scenario of meta.scenarios) {
+    const cell = el("div", "scenario-cell");
+
+    const button = el("button", "btn", scenario.title);
+    button.type = "button";
+    if (scenario.id === HEADLINE_SCENARIO) button.classList.add("btn-headline");
+    // Remembered so a finished run re-enables only the ones that can run.
+    button.dataset.applicable = scenario.applicable ? "yes" : "no";
+    cell.append(button);
+
+    if (scenario.applicable) {
+      button.title = scenario.note;
+      button.addEventListener("click", () => runScenario(scenario, button));
+    } else {
+      button.classList.add("btn-off");
+      button.disabled = true;
+      button.title = `Does not apply to this trip. ${scenario.reason}`;
+      cell.append(el("span", "scenario-reason", scenario.reason));
+    }
+
+    els.scenarioButtons.append(cell);
+  }
 }
 
 // ----------------------------------------------------------------- trace
@@ -260,10 +405,20 @@ function labelled(label, value) {
 function setRunning(isRunning, label) {
   running = isRunning;
   els.resetButton.disabled = isRunning;
-  for (const button of els.scenarioButtons.children) {
-    button.disabled = isRunning;
+  els.setupSubmit.disabled = isRunning;
+  els.setupDays.disabled = isRunning;
+  els.setupBudget.disabled = isRunning;
+
+  for (const cell of els.scenarioButtons.children) {
+    const button = cell.querySelector("button");
+    if (button === null) continue;
+    // A scenario that does not apply to this trip stays disabled either way.
+    // Finishing a run must not hand it back.
+    const applicable = button.dataset.applicable === "yes";
+    button.disabled = isRunning || !applicable;
     if (!isRunning) button.classList.remove("is-running");
   }
+
   els.traceStatus.textContent = label;
   els.traceStatus.classList.toggle("live", isRunning);
 }
@@ -321,30 +476,23 @@ function finish(label) {
 // ----------------------------------------------------------------- boot
 
 async function boot() {
-  const [meta, trip] = await Promise.all([
-    fetch("/api/scenarios").then((response) => response.json()),
-    fetch("/api/trip").then((response) => response.json()),
-  ]);
-
-  els.providerChip.textContent = `${meta.provider} / ${meta.model}`;
+  // The page opens on the default trip the server built, so there is always
+  // something to look at before anything is configured.
+  const trip = await fetch("/api/trip").then((response) => response.json());
   renderTrip(trip);
+  await loadScenarios();
 
-  for (const scenario of meta.scenarios) {
-    const button = el("button", "btn", scenario.title);
-    if (scenario.id === HEADLINE_SCENARIO) button.classList.add("btn-headline");
-    button.type = "button";
-    button.title = scenario.note;
-    button.addEventListener("click", () => runScenario(scenario, button));
-    els.scenarioButtons.append(button);
-  }
+  els.setupForm.addEventListener("submit", submitSetup);
 
   els.resetButton.addEventListener("click", async () => {
     if (running) return;
+    // Reset goes back to the trip the traveller configured, not to any
+    // hardcoded one.
     const fresh = await fetch("/api/reset", { method: "POST" }).then((response) => response.json());
     lastSlotSignature = new Map();
     renderTrip(fresh);
     clearTrace();
-    els.trace.append(el("p", "trace-empty", "Back to the trip as booked. Fire a scenario to start again."));
+    els.trace.append(el("p", "trace-empty", "Back to your trip as booked. Fire a scenario to start again."));
     els.scenarioNote.textContent = "";
     els.traceStatus.textContent = "idle";
   });

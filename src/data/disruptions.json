@@ -68,5 +68,26 @@
     "optionId": "s1",
     "timeSlot": "Trip",
     "message": "Zostel Jaipur has sold out its dorms for the festival weekend. The cheap bed is gone."
+  },
+
+  {
+    "id": "g1",
+    "kind": "activity_cancelled",
+    "target": { "timeSlot": "Day 1 Afternoon", "category": "activity" },
+    "message": "The operator has cancelled your first afternoon, {option}, and refunded it."
+  },
+  {
+    "id": "g2",
+    "kind": "price_spike",
+    "target": { "timeSlot": "Trip", "category": "transport" },
+    "priceFactor": 1.65,
+    "message": "A fuel surcharge has landed. Your local transport for the whole visit, {option}, has been repriced."
+  },
+  {
+    "id": "g3",
+    "kind": "price_spike",
+    "target": { "timeSlot": "Trip", "category": "stay" },
+    "priceFactor": 1.5,
+    "message": "A wedding party has filled the city. {option} has moved your room onto peak rates."
   }
 ]

@@ -16,9 +16,15 @@ export type Category = "transport" | "stay" | "activity";
  * Human readable time slots. We deliberately avoid real timestamps.
  *
  * "Trip" is a spanning slot for things that cover the whole visit rather than
- * one part of one day (a hotel booking, a two day local cab). A 2 day trip ends
- * after Day 2 Afternoon, when the traveller heads home, so there is no
- * "Day 2 Evening" slot.
+ * one part of one day (a hotel booking, a multi day local cab).
+ *
+ * THE SHAPE OF A TRIP. Trips run from 1 to 4 days. Every day has a Morning and
+ * an Afternoon. Every day except the last also has an Evening, because on the
+ * last day the traveller heads home after lunch. So a 2 day trip ends at Day 2
+ * Afternoon (no Day 2 Evening), and a 4 day trip ends at Day 4 Afternoon. Since
+ * 4 is the cap, Day 4 is always the last day, which is why there is no
+ * "Day 4 Evening" below. src/world/slots.ts turns a trip length into the exact
+ * list of slots that trip uses.
  */
 export type TimeSlot =
   | "Day 1 Morning"
@@ -26,15 +32,27 @@ export type TimeSlot =
   | "Day 1 Evening"
   | "Day 2 Morning"
   | "Day 2 Afternoon"
+  | "Day 2 Evening"
+  | "Day 3 Morning"
+  | "Day 3 Afternoon"
+  | "Day 3 Evening"
+  | "Day 4 Morning"
+  | "Day 4 Afternoon"
   | "Trip";
 
-/** Day slots in the order they happen, with the spanning slot last. */
+/** Every day slot in the order they happen, with the spanning slot last. */
 export const TIME_SLOTS: readonly TimeSlot[] = [
   "Day 1 Morning",
   "Day 1 Afternoon",
   "Day 1 Evening",
   "Day 2 Morning",
   "Day 2 Afternoon",
+  "Day 2 Evening",
+  "Day 3 Morning",
+  "Day 3 Afternoon",
+  "Day 3 Evening",
+  "Day 4 Morning",
+  "Day 4 Afternoon",
   "Trip",
 ] as const;
 
@@ -66,6 +84,26 @@ export interface Option {
    * this to false when a venue closes or an activity is cancelled.
    */
   available?: boolean;
+  /**
+   * "Trip" slot options only. A hotel is charged per night and local transport
+   * that runs for the whole visit is charged per day, so a 4 day trip must pay
+   * more for the same thing than a 2 day trip does.
+   *
+   * The catalogue in world.json is written for the REFERENCE trip, which is 2
+   * days and therefore 1 night. `price` is what the option costs on that trip,
+   * and `unitPrice` is the rate it is built from. When a trip of another length
+   * is constructed, src/world/trip.ts rebuilds the option at
+   * `unitPrice * units`, so the reference trip comes out byte identical and
+   * every other length is priced honestly.
+   */
+  scalesPer?: "night" | "day";
+  /** Whole rupees for one night or one day. Required when scalesPer is set. */
+  unitPrice?: number;
+  /**
+   * Name with "{n}" where the night or day count goes, used when the option is
+   * rebuilt for another trip length. Only needed when the name states a count.
+   */
+  nameTemplate?: string;
 }
 
 /**
@@ -126,28 +164,61 @@ export type DisruptionKind =
   | "price_drop";
 
 /**
+ * A generic disruption target: "whatever this trip has booked in this slot for
+ * this category". Used instead of a hardcoded option id so a disruption stays
+ * meaningful whatever shape the trip is.
+ *
+ * It resolves against the live itinerary and nothing else, so it can never
+ * silently land on an unrelated option: if that slot and category holds no
+ * booking, the disruption simply does not apply.
+ */
+export interface DisruptionTarget {
+  timeSlot: TimeSlot;
+  category: Category;
+}
+
+/**
  * A single disruption event. The catalogue of concrete events lives in
  * src/data/disruptions.json so they can be fired on demand.
  *
+ * Exactly one of optionId or target must be set. optionId pins the event to one
+ * named option, which is what the finely tuned demo scenarios need. target picks
+ * the event up off the current itinerary instead, which is what keeps a scenario
+ * meaningful on a trip of any length. src/events/applicability.ts resolves a
+ * targeted disruption into a concrete one before the engine ever sees it, so the
+ * engine only ever handles an optionId.
+ *
  * Which fields matter depends on kind:
- *   - "activity_cancelled": optionId is the booked activity that is off. It is
- *     marked unavailable and dropped from the itinerary, leaving the slot empty.
- *   - "venue_closed": optionId is the option whose venue shut. It is marked
- *     unavailable whether or not it was booked, so it can also kill a fallback
- *     the agent was counting on.
- *   - "price_spike" and "price_drop": optionId plus newPrice, the new integer
- *     INR price. A spike can push a category over its allocation.
+ *   - "activity_cancelled": the booked activity that is off. It is marked
+ *     unavailable and dropped from the itinerary, leaving the slot empty.
+ *   - "venue_closed": the option whose venue shut. It is marked unavailable
+ *     whether or not it was booked, so it can also kill a fallback the agent was
+ *     counting on.
+ *   - "price_spike" and "price_drop": newPrice, the new integer INR price, or
+ *     priceFactor for a targeted event where the old price is not known in
+ *     advance. A spike can push a category over its allocation.
  */
 export interface Disruption {
   id: string;
   kind: DisruptionKind;
-  /** The option this hits. Present for every kind we currently model. */
-  optionId: string;
+  /** The option this hits, when the event is pinned to one. */
+  optionId?: string;
+  /** The booking this hits, when the event is picked off the live itinerary. */
+  target?: DisruptionTarget;
   /** The slot affected, when the disruption is about a slot in the plan. */
   timeSlot?: TimeSlot;
-  /** Price spikes only: the new whole rupee price. */
+  /** Price events on a pinned option: the new whole rupee price. */
   newPrice?: number;
-  /** Traveller facing sentence, for example "Chokhi Dhani is fully booked tonight." */
+  /**
+   * Price events on a targeted booking: multiply the price it finds. Above 1 for
+   * a spike, below 1 for a drop. The result is rounded to whole rupees.
+   */
+  priceFactor?: number;
+  /**
+   * Traveller facing sentence, for example "Chokhi Dhani is fully booked
+   * tonight." A targeted disruption may write "{option}" where the name of the
+   * booking it landed on should go.
+   */
   message: string;
 }
 

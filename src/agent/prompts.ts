@@ -14,6 +14,7 @@ import { CATEGORIES, type TripState, type World } from "../data/types.js";
 import type { DisruptionOutcome } from "../events/engine.js";
 import { getOption, sortItinerary } from "../world/loader.js";
 import { formatINR } from "../world/money.js";
+import { daySlotsForTripLength, nightsForTripLength } from "../world/slots.js";
 
 export const SYSTEM_INSTRUCTION = `
 You are Trip Guardian, an autonomous travel agent. A traveller is mid trip with a
@@ -73,13 +74,26 @@ parentheses instead. Write money as "Rs 1,350".
 
 /** The catalogue and the rules of the world, written once for the first turn. */
 export function describeWorld(world: World): string {
+  const days = world.tripLengthDays;
+  const daySlots = daySlotsForTripLength(days);
+  const first = daySlots[0] ?? "Day 1 Morning";
+  const last = daySlots[daySlots.length - 1] ?? "Day 1 Afternoon";
+  const nights = nightsForTripLength(days);
+
   return [
     `CITY: ${world.city}`,
-    `TRIP LENGTH: ${world.tripLengthDays} days`,
+    `TRIP LENGTH: ${days} days`,
     "",
-    "The trip runs from Day 1 Morning to Day 2 Afternoon. There is no Day 2 Evening,",
-    'the traveller heads home. The slot called "Trip" spans the whole visit and holds',
-    "two things at once: the hotel (stay) and the local transport that covers both days.",
+    `The trip runs from ${first} to ${last}. There is no Day ${days} Evening, the`,
+    'traveller heads home after lunch on the last day. The slot called "Trip" spans the',
+    nights === 0
+      ? "whole visit and holds the local transport. A one day trip sleeps nowhere, so there"
+      : `whole visit and holds two things at once: the hotel (stay), booked for ${nights} night(s),`,
+    nights === 0 ? "is no stay to book." : `and the local transport that covers all ${days} days.`,
+    "",
+    "THE SLOTS THIS TRIP HAS, in order:",
+    `  ${daySlots.join(", ")}, Trip`,
+    "Nothing exists outside that list. Do not look for a slot that is not on it.",
     "",
     `There are ${world.options.length} bookable options in total. Use search_alternatives`,
     "to see them, since it also tells you which ones are closed and what each one would",
@@ -113,10 +127,13 @@ export function describeTripState(world: World, state: TripState): string {
     `  TOTAL: allocated ${formatINR(state.budget.totalINR)}, spent ${formatINR(state.budget.totalSpent)}, remaining ${formatINR(state.budget.totalRemaining)}`,
   );
 
-  // Call out an empty slot explicitly. It is the most common thing to miss.
+  // Call out an empty slot explicitly. It is the most common thing to miss. The
+  // slot list comes from the trip's own length, so a 4 day trip is not asked
+  // about slots it has and a 1 day trip is not asked about slots it does not.
   const filledSlots = new Set(ordered.map((item) => item.timeSlot));
-  const daySlots = ["Day 1 Morning", "Day 1 Afternoon", "Day 1 Evening", "Day 2 Morning", "Day 2 Afternoon"];
-  const empty = daySlots.filter((slot) => !filledSlots.has(slot as never));
+  const empty = daySlotsForTripLength(state.tripLengthDays).filter(
+    (slot) => !filledSlots.has(slot),
+  );
   if (empty.length > 0) {
     lines.push("", `EMPTY SLOTS RIGHT NOW: ${empty.join(", ")}`);
   }

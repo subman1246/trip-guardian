@@ -12,7 +12,16 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-import type { Category, Disruption, Option, TimeSlot, TripState, World } from "../data/types.js";
+import {
+  CATEGORIES,
+  TIME_SLOTS,
+  type Category,
+  type Disruption,
+  type Option,
+  type TimeSlot,
+  type TripState,
+  type World,
+} from "../data/types.js";
 import { formatINR, isValidAmount } from "../world/money.js";
 import { patchOption, withItinerary, withWorld } from "../world/state.js";
 
@@ -170,24 +179,59 @@ function validateDisruptions(world: World, disruptions: Disruption[]): void {
     if (!kinds.includes(disruption.kind)) {
       problems.push(`${label} has unknown kind "${disruption.kind}".`);
     }
-    if (!world.options.some((option) => option.id === disruption.optionId)) {
-      problems.push(`${label} targets unknown option "${disruption.optionId}".`);
-    }
     if (!disruption.message) {
       problems.push(`${label} has no message.`);
     }
 
-    // Price events must carry a sane new price, and must actually move it.
+    // A disruption is either pinned to one option id or written against a slot
+    // and category it resolves against the live itinerary. Never both, never
+    // neither, or there would be no single answer to what it hits.
+    const pinned = disruption.optionId !== undefined;
+    const targeted = disruption.target !== undefined;
+
+    if (pinned === targeted) {
+      problems.push(`${label} must set exactly one of optionId and target.`);
+    }
+
+    if (pinned && !world.options.some((option) => option.id === disruption.optionId)) {
+      problems.push(`${label} targets unknown option "${disruption.optionId}".`);
+    }
+
+    if (targeted) {
+      const target = disruption.target as NonNullable<Disruption["target"]>;
+      if (!TIME_SLOTS.includes(target.timeSlot)) {
+        problems.push(`${label} targets unknown timeSlot "${target.timeSlot}".`);
+      }
+      if (!CATEGORIES.includes(target.category)) {
+        problems.push(`${label} targets unknown category "${target.category}".`);
+      }
+    }
+
+    // Price events must carry a sane new price, and must actually move it. A
+    // pinned event states the price outright. A targeted one cannot, since it
+    // does not know yet what it will land on, so it states a factor instead and
+    // the resolver turns that into whole rupees.
     if (disruption.kind === "price_spike" || disruption.kind === "price_drop") {
-      const target = world.options.find((option) => option.id === disruption.optionId);
-      if (!isValidAmount(disruption.newPrice)) {
-        problems.push(`${label} needs a newPrice as a whole number of rupees.`);
-      } else if (target) {
-        if (disruption.kind === "price_spike" && disruption.newPrice <= target.price) {
-          problems.push(`${label} is a price_spike but ${disruption.newPrice} is not above ${target.price}.`);
+      if (targeted) {
+        const factor = disruption.priceFactor;
+        if (typeof factor !== "number" || !Number.isFinite(factor) || factor <= 0) {
+          problems.push(`${label} needs a positive priceFactor.`);
+        } else if (disruption.kind === "price_spike" && factor <= 1) {
+          problems.push(`${label} is a price_spike but its priceFactor ${factor} does not raise the price.`);
+        } else if (disruption.kind === "price_drop" && factor >= 1) {
+          problems.push(`${label} is a price_drop but its priceFactor ${factor} does not lower the price.`);
         }
-        if (disruption.kind === "price_drop" && disruption.newPrice >= target.price) {
-          problems.push(`${label} is a price_drop but ${disruption.newPrice} is not below ${target.price}.`);
+      } else {
+        const target = world.options.find((option) => option.id === disruption.optionId);
+        if (!isValidAmount(disruption.newPrice)) {
+          problems.push(`${label} needs a newPrice as a whole number of rupees.`);
+        } else if (target) {
+          if (disruption.kind === "price_spike" && disruption.newPrice <= target.price) {
+            problems.push(`${label} is a price_spike but ${disruption.newPrice} is not above ${target.price}.`);
+          }
+          if (disruption.kind === "price_drop" && disruption.newPrice >= target.price) {
+            problems.push(`${label} is a price_drop but ${disruption.newPrice} is not below ${target.price}.`);
+          }
         }
       }
     }

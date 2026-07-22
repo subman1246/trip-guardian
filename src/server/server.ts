@@ -29,8 +29,9 @@ import { activeModelName, hasApiKey, hasGroqApiKey, providerName } from "../agen
 import { explainApiError } from "../agent/errors.js";
 import { runAgent, type AgentObserver } from "../agent/loop.js";
 import { createModel } from "../agent/providers.js";
+import { MAX_TRIP_DAYS, MIN_TRIP_DAYS, isSupportedTripLength } from "../world/slots.js";
 import { Session } from "./session.js";
-import { toDisruptionView, toTripView } from "./views.js";
+import { toDisruptionView, toSetupView, toTripView } from "./views.js";
 
 /** Where the static page lives. */
 const WEB_ROOT = fileURLToPath(new URL("../../web/", import.meta.url));
@@ -72,22 +73,40 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
   if (path === "/api/scenarios") {
     // The provider name and model id are safe to show. The key is not sent, and
     // is not reachable from anything below.
+    //
+    // Applicability is computed here, against the trip as currently configured,
+    // so the page can grey out the buttons that would be meaningless instead of
+    // letting a viewer fire one and watch nothing happen.
     const provider = providerName();
     sendJson(response, 200, {
       provider,
       model: activeModelName(provider),
-      scenarios: session.scenarios.map((scenario) => ({
-        id: scenario.id,
-        title: scenario.title,
-        note: scenario.note,
-        disruptionIds: scenario.disruptionIds,
-      })),
+      scenarios: session.scenarios.map((scenario) => {
+        const applicability = session.applicability(scenario);
+        return {
+          id: scenario.id,
+          title: scenario.title,
+          note: scenario.note,
+          disruptionIds: scenario.disruptionIds,
+          applicable: applicability.applicable,
+          reason: applicability.reason,
+        };
+      }),
     });
     return;
   }
 
   if (path === "/api/trip") {
-    sendJson(response, 200, toTripView(session.world, session.state));
+    sendJson(response, 200, tripPayload());
+    return;
+  }
+
+  if (path === "/api/setup") {
+    if (running) {
+      sendJson(response, 409, { error: "A run is in progress, wait for it to finish." });
+      return;
+    }
+    await handleSetup(request, url, response);
     return;
   }
 
@@ -96,8 +115,9 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
       sendJson(response, 409, { error: "A run is in progress, wait for it to finish." });
       return;
     }
+    // Back to the trip the traveller configured, not to any hardcoded one.
     session.reset();
-    sendJson(response, 200, toTripView(session.world, session.state));
+    sendJson(response, 200, tripPayload());
     return;
   }
 
@@ -109,6 +129,72 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
   await serveStatic(path, response);
 }
 
+// ---------------------------------------------------------------- the setup
+
+/** The trip plus how it was constructed, which is what the page draws. */
+function tripPayload(): Record<string, unknown> {
+  return { ...toTripView(session.world, session.state), setup: toSetupView(session.plan) };
+}
+
+/**
+ * TASKS 2 AND 3: take a length and a budget, and either build that trip or
+ * explain why it cannot be built.
+ *
+ * The feasibility answer is pure arithmetic over the local catalogue. No model
+ * is contacted, and nothing is constructed until it is known to work, so a
+ * broken trip never exists even briefly.
+ */
+async function handleSetup(
+  request: IncomingMessage,
+  url: URL,
+  response: ServerResponse,
+): Promise<void> {
+  const body = await readJsonBody(request);
+  const days = Number(body.days ?? url.searchParams.get("days"));
+  const budget = Number(body.budget ?? url.searchParams.get("budget"));
+
+  if (!isSupportedTripLength(days)) {
+    sendJson(response, 400, {
+      error: `Pick a whole number of days between ${MIN_TRIP_DAYS} and ${MAX_TRIP_DAYS}. Trips are capped at ${MAX_TRIP_DAYS} days.`,
+    });
+    return;
+  }
+  if (!Number.isInteger(budget) || budget <= 0) {
+    sendJson(response, 400, { error: "The budget must be a whole number of rupees above zero." });
+    return;
+  }
+
+  const feasibility = session.check(days, budget);
+  if (!feasibility.ok) {
+    // 422: the request was understood and is simply not affordable. The page
+    // shows the message and the minimum, and nothing is rebuilt.
+    sendJson(response, 422, {
+      error: feasibility.message,
+      days: feasibility.days,
+      totalINR: feasibility.totalINR,
+      cheapestPlanINR: feasibility.cheapestPlanINR,
+      minimumINR: feasibility.minimumINR,
+    });
+    return;
+  }
+
+  session.configure(days, budget);
+  sendJson(response, 200, tripPayload());
+}
+
+/** Read a JSON body if there is one. An empty or unparseable body is just {}. */
+async function readJsonBody(request: IncomingMessage): Promise<Record<string, unknown>> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of request) chunks.push(chunk as Buffer);
+  if (chunks.length === 0) return {};
+  try {
+    const parsed: unknown = JSON.parse(Buffer.concat(chunks).toString("utf8"));
+    return typeof parsed === "object" && parsed !== null ? (parsed as Record<string, unknown>) : {};
+  } catch {
+    return {};
+  }
+}
+
 // ------------------------------------------------------------------ the run
 
 async function streamRun(scenarioId: string, response: ServerResponse): Promise<void> {
@@ -117,6 +203,17 @@ async function streamRun(scenarioId: string, response: ServerResponse): Promise<
     sendJson(response, 404, { error: `Unknown scenario "${scenarioId}".` });
     return;
   }
+
+  // The page greys these out, but a scenario that does not apply to the current
+  // trip must be refused here too, so a stale page cannot half fire one.
+  const applicability = session.applicability(scenario);
+  if (!applicability.applicable) {
+    sendJson(response, 409, {
+      error: `"${scenario.title}" does not apply to this trip. ${applicability.reason}`,
+    });
+    return;
+  }
+
   if (running) {
     sendJson(response, 409, { error: "A run is already in progress." });
     return;
@@ -161,7 +258,7 @@ async function streamRun(scenarioId: string, response: ServerResponse): Promise<
     // Every run starts from the trip as booked, so a scenario behaves the same
     // on the tenth demo as on the first.
     session.reset();
-    emit("reset", toTripView(session.world, session.state));
+    emit("reset", tripPayload());
     emit("scenario", { id: scenario.id, title: scenario.title, note: scenario.note });
 
     const provider = providerName();

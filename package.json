@@ -12,6 +12,7 @@
     "tools-demo": "tsx scripts/tools-demo.ts",
     "agent-demo": "tsx scripts/agent-demo.ts",
     "verify-scenario": "tsx scripts/verify-scenario.ts",
+    "verify-trips": "tsx scripts/verify-trips.ts",
     "demo": "tsx scripts/serve.ts",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit"

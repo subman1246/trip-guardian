@@ -20,6 +20,33 @@
       </div>
     </header>
 
+    <section class="setup" aria-labelledby="setup-heading">
+      <h2 id="setup-heading">Plan your trip</h2>
+      <form class="setup-form" id="setup-form">
+        <label class="field">
+          <span>Days</span>
+          <input id="setup-days" name="days" type="number" min="1" max="4" step="1" value="2"
+                 inputmode="numeric" required />
+        </label>
+        <label class="field">
+          <span>Total budget (INR)</span>
+          <!-- step is 1 because money is whole rupees. A coarser step would make
+               the browser reject round numbers like 15000 against a min of 1. -->
+          <input id="setup-budget" name="budget" type="number" min="1" step="1" value="15000"
+                 inputmode="numeric" required />
+        </label>
+        <button class="btn btn-build" id="setup-submit" type="submit">Build trip</button>
+        <p class="setup-hint">
+          Trips are capped at 4 days, because the Jaipur dataset is handmade and only
+          runs that far. Everything below is worked out from the catalogue before the
+          agent is involved at all.
+        </p>
+      </form>
+
+      <p class="setup-error" id="setup-error" hidden></p>
+      <div class="setup-summary" id="setup-summary"></div>
+    </section>
+
     <nav class="controls" aria-label="Scenarios">
       <span class="controls-label">Fire a disruption</span>
       <div class="scenario-buttons" id="scenario-buttons"></div>

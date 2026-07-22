@@ -21,6 +21,12 @@ import {
   type World,
 } from "../data/types.js";
 import { isValidAmount } from "./money.js";
+import {
+  MAX_TRIP_DAYS,
+  MIN_TRIP_DAYS,
+  isSupportedTripLength,
+  nightsForTripLength,
+} from "./slots.js";
 
 /** Absolute path to the world file, resolved relative to this module. */
 const WORLD_JSON_PATH = fileURLToPath(new URL("../data/world.json", import.meta.url));
@@ -110,14 +116,20 @@ export function sortItinerary(itinerary: ItineraryItem[]): ItineraryItem[] {
 /**
  * Check every invariant the rest of the project relies on. Failing loudly here
  * beats a wrong number quietly showing up in the demo.
+ *
+ * Exported so a trip constructed from user input (src/world/trip.ts) is put
+ * through exactly the same checks as a trip read off disk. A constructed world
+ * is not trusted more than a hand written one.
  */
-function validateWorld(world: World): void {
+export function validateWorld(world: World): void {
   const problems: string[] = [];
 
   if (!world.city) problems.push("city is missing.");
   if (world.currency !== "INR") problems.push('currency must be "INR".');
-  if (!Number.isInteger(world.tripLengthDays) || world.tripLengthDays < 1) {
-    problems.push("tripLengthDays must be a positive whole number.");
+  if (!isSupportedTripLength(world.tripLengthDays)) {
+    problems.push(
+      `tripLengthDays must be a whole number between ${MIN_TRIP_DAYS} and ${MAX_TRIP_DAYS}, got ${world.tripLengthDays}.`,
+    );
   }
 
   // Options: unique ids, integer prices, known slots and categories.
@@ -135,6 +147,37 @@ function validateWorld(world: World): void {
     }
     if (!isValidAmount(option.price)) {
       problems.push(`option ${label} price must be a whole number of rupees.`);
+    }
+
+    // Options priced by the night or by the day carry the rate they are built
+    // from, and the stored price has to be that rate times however many nights
+    // or days THIS world runs for. If those two ever disagree, a trip would be
+    // charging a number nobody checked.
+    if (option.scalesPer !== undefined) {
+      if (option.scalesPer !== "night" && option.scalesPer !== "day") {
+        problems.push(`option ${label} has unknown scalesPer "${option.scalesPer}".`);
+      } else if (option.timeSlot !== "Trip") {
+        problems.push(`option ${label} has a scalesPer rate but is not a "Trip" slot option.`);
+      } else if (!isValidAmount(option.unitPrice) || option.unitPrice === 0) {
+        problems.push(`option ${label} needs a unitPrice as a positive whole number of rupees.`);
+      } else {
+        const units =
+          option.scalesPer === "night"
+            ? nightsForTripLength(world.tripLengthDays)
+            : world.tripLengthDays;
+        if (option.unitPrice * units !== option.price) {
+          problems.push(
+            `option ${label} is ${option.unitPrice} per ${option.scalesPer}, which over a ` +
+              `${world.tripLengthDays} day trip is ${option.unitPrice * units}, but price says ${option.price}.`,
+          );
+        }
+      }
+    } else if (option.unitPrice !== undefined) {
+      problems.push(`option ${label} has a unitPrice but no scalesPer to say what it is a rate for.`);
+    }
+
+    if (option.nameTemplate !== undefined && !option.nameTemplate.includes("{n}")) {
+      problems.push(`option ${label} has a nameTemplate with no "{n}" placeholder in it.`);
     }
   }
 

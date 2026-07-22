@@ -28,8 +28,8 @@ export function clip(text: string, max: number): string {
 }
 
 /** Friendlier label for the spanning slot. */
-function slotLabel(slot: TimeSlot): string {
-  return slot === "Trip" ? "Whole Trip (spans both days)" : slot;
+function slotLabel(slot: TimeSlot, days: number): string {
+  return slot === "Trip" ? `Whole Trip (spans all ${days} days)` : slot;
 }
 
 /** Left text, right text, dots of space in between, padded to WIDTH. */
@@ -102,7 +102,7 @@ export function formatTripState(state: TripState, world: World): string {
     const itemsInSlot = ordered.filter((item) => item.timeSlot === slot);
     if (itemsInSlot.length === 0) continue;
 
-    lines.push(slotLabel(slot));
+    lines.push(slotLabel(slot, state.tripLengthDays));
     for (const item of itemsInSlot) {
       lines.push(...formatItem(item, world));
     }

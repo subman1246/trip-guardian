@@ -23,6 +23,11 @@ All four prompts are done.
 - **Prompt 4, the demo UI.** A thin server that streams a live run to a plain
   HTML page, plus `no-donor-left`, a scenario where every direct repair is
   arithmetically refused.
+- **Prompt B1, trips you choose.** The 2 day, Rs 15,000 trip is no longer
+  hardcoded. You pick 1 to 4 days and a budget, the trip is built from that with
+  a documented split rule and a headroom target, an unaffordable budget is
+  refused with the minimum that would work, and scenarios that do not apply to
+  your trip are disabled with the reason.
 
 ## Run it
 
@@ -33,6 +38,7 @@ npm run tools-demo                   # drive the tools through a fixed script, n
 npm run agent-demo -- --list         # show the scenarios
 npm run agent-demo -- <scenario-id>  # let the agent loose on one
 npm run verify-scenario -- <id>      # check a scenario's arithmetic, no AI
+npm run verify-trips                 # check trip building at 1 to 4 days, no AI
 npm run demo                         # the browser UI on http://localhost:5173
 npm run typecheck                    # tsc --noEmit
 ```
@@ -81,21 +87,70 @@ retries automatically, printing a line so the run does not look frozen.
 | `transport-squeeze` | **The forced tradeoff.** No amount of rebooking alone can fix it, the agent has to reallocate from another category first. |
 | `evening-collapse` | A cascade with no clean answer. A slot has nothing left to book, so the agent has to accept a gap and say so. |
 | `double-hit` | Two independent breaks at once. It has to notice both. |
-| `no-donor-left` | **The forced refusal.** The only replacement for the empty slot busts activity by Rs 700, and the whole trip can only lend Rs 550, so no rebooking and no reallocation works until the agent spends less somewhere first. |
+| `no-donor-left` | **The forced refusal.** The only replacement for the empty slot busts activity, and every donor emptied together still cannot cover the gap, so no rebooking and no reallocation works until the agent spends less somewhere first. |
+| `any-cancelled-plan` | The same shape as `cancelled-tour`, but written against the slot instead of an option id, so it works on any trip. |
+| `any-price-shock` | Local transport and the room both repriced, whatever this trip booked for them. Needs a stay, so not on a 1 day trip. |
 
 Ad hoc combinations work too: `npm run agent-demo -- -d d1,d4`.
+
+### Scenarios and the trip you actually configured
+
+Most scenarios were written against specific option ids. `no-donor-left` needs
+a5, s2 and s1 to be exactly where they were. On a shorter or differently built
+trip those options may not be booked, or may not exist at that length, and firing
+the scenario would be meaningless.
+
+So every scenario is checked against the current trip before it is offered. The
+UI draws the ones that do not apply **disabled, with the reason beside them and
+on hover**, rather than hiding them, and the server refuses to run one anyway so
+a stale page cannot half fire it. On a 1 day trip that reads:
+
+```
+APPLIES  cancelled-tour
+BLOCKED  cab-spike           "Private Cab with Driver (1 day)" is not booked on this trip, so this would change nothing.
+BLOCKED  evening-collapse    Day 1 Evening is not part of a 1 day trip, so "Chokhi Dhani Village Dinner" cannot be booked.
+BLOCKED  no-donor-left       Day 2 Morning is not part of a 1 day trip, so "Hawa Mahal and Jantar Mantar Walk" cannot be booked.
+BLOCKED  double-hit          A 1 day trip sleeps nowhere, so "Hotel Pearl Palace (Heritage Room)" is not offered on it.
+APPLIES  any-cancelled-plan
+BLOCKED  any-price-shock     This trip has no stay booked for the whole trip.
+```
+
+Where a disruption can be written generically it is. A disruption may name a
+**target** (a time slot and a category) instead of an option id, and it then
+lands on whatever this trip has booked there: `g1` hits the Day 1 Afternoon
+activity, `g2` the local transport, `g3` the room. Price events on a target carry
+a factor rather than a price, since they cannot know in advance what they will
+land on.
+
+A target only ever matches a booking in the same slot playing the same role. It
+is never retargeted onto something unrelated: if that slot and category holds no
+booking, the scenario is reported as not applicable instead of being moved. The
+finely tuned scenarios keep their hardcoded ids on purpose, because their whole
+value is in arithmetic that only works against those exact options.
 
 `npm run verify-scenario -- <id>` checks a scenario's arithmetic offline, with no
 AI and no network: whether a straightforward first move exists (which would mean
 no refusal ever fires) and whether a real path to a repaired trip exists at all.
 
+`npm run verify-trips` is the offline proof for trip building, also with no AI
+and no network. It checks that every slot at every length has at least two open
+options, that trips build at 1, 2, 3 and 4 days across several budgets with the
+allocations summing exactly and the budget matching a fresh recomputation, that
+the starting itinerary always leaves the headroom, that a budget one rupee below
+the minimum is refused while the minimum itself builds, that scenario
+applicability matches what firing the scenario actually does, and that
+`no-donor-left` still forces a refusal on the constructed trip. It exits non zero
+if anything fails.
+
 ### On forcing a refusal
 
 `no-donor-left` is built so that every direct repair is refused. The verifier
 proves it: rebooking the balloon is refused for `category_would_go_negative`,
-and reallocating the Rs 700 is refused for `insufficient_allocation` from either
-donor, because transport has Rs 450 spare and stay has Rs 100. Even emptying both
-donors completely yields Rs 550 against a Rs 700 gap.
+and reallocating the shortfall is refused for `insufficient_allocation` from
+either donor. On the world file's own 4,000 / 5,000 / 6,000 split that is Rs 550
+of donor money against a Rs 700 gap. On the trip the split rule builds for 2 days
+and Rs 15,000 it is Rs 530 against Rs 680, checked by `npm run verify-trips`
+rather than assumed, since the allocations are now computed rather than typed.
 
 What that does **not** do is guarantee the refusal appears in a live trace, and it
 is worth being precise about why. Cutting spend is always legal: swapping down to
@@ -117,10 +172,12 @@ step 8) is where the reject-and-adapt path is demonstrated deterministically.
 npm run demo                         # http://localhost:5173
 ```
 
-A thin page for watching one run. Three regions: the itinerary by time slot, the
-per category budget bars, and the reasoning trace streaming in live. A row of
-buttons fires any scenario, and a reset button puts the trip back to how it was
-booked, so a scenario can be demoed over and over without restarting.
+A thin page for watching one run. It opens with the setup step (days and budget),
+then shows the constructed trip and its budget before any scenario runs. Below
+that: the itinerary by time slot, the per category budget bars, and the reasoning
+trace streaming in live. A row of buttons fires any scenario that applies to the
+trip, and a reset button puts the trip back to how **you** configured it, so a
+scenario can be demoed over and over without restarting.
 
 **The key never reaches the browser.** The agent runs in the server process.
 `src/agent/config.ts` reads the key from the environment there, and it is never
@@ -147,6 +204,9 @@ src/
     disruptions.json  the catalogue of events that can be fired
   world/
     loader.ts         reads and validates the JSON, builds and recomputes TripState
+    slots.ts          how many days a trip can run for, and which slots it uses
+    trip.ts           builds a trip from days and budget: the split rule, the
+                      headroom target and the feasibility check
     state.ts          the immutability rule, and the helpers that enforce it
     printer.ts        pretty prints the itinerary, budget and option catalogue
     money.ts          whole rupee helpers and INR formatting
@@ -161,6 +221,8 @@ src/
   events/
     engine.ts         loads disruptions and applies them to the world
     scenarios.ts      named sets of disruptions to fire before a run
+    applicability.ts  resolves a disruption against the live itinerary, and works
+                      out whether a scenario means anything on the current trip
   agent/
     config.ts         reads API keys from the environment, and picks the provider
     declarations.ts   the four tools described to the model as function declarations
@@ -186,6 +248,7 @@ scripts/
   tools-demo.ts       npm run tools-demo
   agent-demo.ts       npm run agent-demo
   verify-scenario.ts  npm run verify-scenario
+  verify-trips.ts     npm run verify-trips
   serve.ts            npm run demo
 ```
 
@@ -242,23 +305,90 @@ These hold for the whole project.
 
 ## The world
 
-One city (Jaipur), a 2 day trip, 15 bookable options. The trip runs from Day 1
-Morning to Day 2 Afternoon, so there is no Day 2 Evening slot. Options that cover
-the whole visit (a hotel, a two day cab) sit in the spanning `Trip` slot.
+One city (Jaipur), 29 bookable options, and a trip of **1 to 4 days** that the
+traveller chooses.
 
-## The budget
+Every day has a Morning and an Afternoon. Every day except the last also has an
+Evening, because the traveller heads home after lunch on the final day. So a 2
+day trip ends at Day 2 Afternoon and a 4 day trip ends at Day 4 Afternoon.
+Anything that spans the whole visit (the hotel, the local transport) sits in the
+`Trip` slot. Nights are one fewer than days, so a 1 day trip is a day trip out of
+Delhi with no stay at all.
 
-Total 15,000 INR, split so the starting plan fits with room for the agent to
-manoeuvre when something breaks.
+**The 4 day cap is real.** The dataset is handmade and only carries curated
+Jaipur options out to Day 4. Anything longer would be filler, so the UI states
+the cap and refuses it.
 
-| Category  |  Allocated | Starting spend | Headroom |
-| --------- | ---------: | -------------: | -------: |
-| transport |      4,000 |          3,550 |      450 |
-| stay      |      5,000 |          2,800 |    2,200 |
-| activity  |      6,000 |          4,100 |    1,900 |
-| **Total** | **15,000** |     **10,450** |    4,550 |
+**Every slot has at least two open options** in every category it books, so a
+disruption always leaves an alternative. That is not an aspiration, it is checked
+programmatically by `npm run verify-trips`.
 
-The headroom is deliberate. Some repairs fit inside a category, others (swapping
-up to the heritage suite, or adding the balloon ride) cost more than one category
-has left, which forces the agent to reallocate across categories or trade down
+**Options that scale.** A hotel is charged per night and local transport that
+runs all visit is charged per day, so a 4 day trip cannot pay the 2 day price for
+either. `world.json` is written for the reference trip (2 days, 1 night) and
+carries the rate each price is built from. `src/world/trip.ts` rebuilds those
+options at the requested length, so a 3 night stay at the Pearl Palace costs
+Rs 8,400 rather than Rs 2,800, and the reference trip comes out byte identical.
+
+## Building a trip from what you asked for
+
+The UI opens with a setup step: a number of days (1 to 4, enforced) and a total
+budget in whole rupees. Everything from there is arithmetic over the local
+catalogue, run before the agent exists.
+
+### The split rule
+
+1. Work out the **cheapest bookable plan** for that many days: for each thing the
+   trip must book (the arrival, the stay, the local transport, one activity per
+   remaining day slot), take the cheapest open option. Add up what that costs per
+   category. Those are the **floors**.
+2. The **surplus** is the total budget minus the sum of the floors. It is the
+   discretionary money, the part that buys a nicer trip.
+3. Every category gets its floor first, so it can always afford its own bookings.
+   The surplus is then shared out **20% to transport, 40% to stay, 40% to
+   activity**. Transport moves you around and is worth the least extra spend, a
+   bed and the things you came to do are worth the most. On a 1 day trip there is
+   no stay, so its share is spread over the other two.
+4. Transport and stay take the whole rupee floor of their share and activity
+   takes the remainder, so the three allocations sum to the total exactly.
+
+### The headroom target
+
+The starting itinerary must leave **at least 20% of the total budget** and **at
+least 5% of every category's allocation** unspent. The builder then buys the
+nicest trip that still respects both ceilings.
+
+The headroom is the whole point. A trip booked up to its allocations cannot
+absorb a price spike, cannot lend between categories, and turns every disruption
+into an unfixable one. Some repairs fit inside a category, others (swapping up to
+the heritage suite, or adding the balloon ride) cost more than one category has
+left, which forces the agent to reallocate across categories or trade down
 elsewhere. That is the decision we want to see it make.
+
+### The feasibility check, before the agent is ever involved
+
+If the requested budget cannot cover a viable trip, **nothing is built**. The
+cheapest bookable plan is priced, the headroom is applied, and the traveller is
+told the minimum that would work:
+
+> Rs 5,000 cannot cover a 3 day trip in Jaipur, Rajasthan. The cheapest bookable
+> plan for 3 days costs Rs 8,150, and we hold back 20% of the budget as headroom
+> so the agent has room to repair things when they break. Raise the budget to at
+> least Rs 10,188 for 3 days, or ask for fewer days.
+
+Pure arithmetic, no model involved. The minimums today:
+
+| Days | Cheapest bookable plan | Minimum budget |
+| ---: | ---------------------: | -------------: |
+|    1 |                  2,450 |          3,063 |
+|    2 |                  5,450 |          6,813 |
+|    3 |                  8,150 |         10,188 |
+|    4 |                 11,000 |         13,750 |
+
+### The default trip
+
+The page opens on 2 days and Rs 15,000, which the split rule builds into the
+trip this project was designed around: the Shatabdi in, the Pearl Palace, the
+private cab, and the Amber Fort, Chokhi Dhani, Hawa Mahal and block printing
+days. Allocations come out at 4,060 transport, 4,920 stay and 6,020 activity,
+which spends 10,450 and holds back 4,550.
