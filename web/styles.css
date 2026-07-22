@@ -1,0 +1,634 @@
+/*
+ * Styling for the demo page.
+ *
+ * The job is legibility in a screen recording, not decoration. Big type, high
+ * contrast, one accent colour, and one loud colour reserved for the thing the
+ * demo is about: a tool refusing the agent.
+ */
+
+:root {
+  --bg: #0e1116;
+  --panel: #161b22;
+  --panel-edge: #262d38;
+  --ink: #e8edf4;
+  --ink-soft: #9aa6b6;
+  --ink-faint: #6b7787;
+
+  --accent: #4c9aff;
+  --ok: #3fb950;
+  --warn: #d9a441;
+  --bad: #f4564a;
+
+  --transport: #4c9aff;
+  --stay: #a97bff;
+  --activity: #2fbfa4;
+
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  --sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+/* ------------------------------------------------------------- masthead */
+
+.masthead {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 20px 24px 12px;
+  border-bottom: 1px solid var(--panel-edge);
+}
+
+.masthead h1 {
+  margin: 0;
+  font-size: 22px;
+  letter-spacing: 0.2px;
+}
+
+.tagline {
+  margin: 4px 0 0;
+  color: var(--ink-soft);
+  font-size: 14px;
+}
+
+.masthead-right {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--panel-edge);
+  background: var(--panel);
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.chip-quiet {
+  color: var(--ink-faint);
+}
+
+/* ------------------------------------------------------------- controls */
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 24px;
+}
+
+.controls-label {
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-right: 4px;
+}
+
+.scenario-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex: 1 1 auto;
+}
+
+.btn {
+  font-family: var(--sans);
+  font-size: 13px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--panel-edge);
+  background: var(--panel);
+  color: var(--ink);
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.btn:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.btn.is-running {
+  border-color: var(--accent);
+  background: #16283f;
+  opacity: 1;
+}
+
+/* The scenario built to be refused. Marked so a viewer knows which one matters. */
+.btn.btn-headline {
+  border-color: #5a3a2a;
+  background: #221913;
+}
+
+.btn.btn-headline::before {
+  content: "\2605";
+  color: var(--warn);
+  margin-right: 6px;
+}
+
+.btn-reset {
+  margin-left: auto;
+}
+
+.scenario-note {
+  margin: 0 24px;
+  padding: 0;
+  min-height: 20px;
+  color: var(--ink-soft);
+  font-size: 13px;
+  max-width: 120ch;
+}
+
+/* --------------------------------------------------------------- layout */
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+  grid-template-rows: auto auto;
+  gap: 16px;
+  padding: 16px 24px 28px;
+  align-items: start;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--panel-edge);
+  border-radius: 12px;
+  padding: 16px 18px;
+  min-width: 0;
+}
+
+.panel-trace {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 190px);
+}
+
+.panel h2 {
+  margin: 0 0 14px;
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.panel-foot {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--panel-edge);
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+@media (max-width: 1000px) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .panel-trace {
+    grid-column: 1;
+    grid-row: auto;
+    max-height: none;
+  }
+}
+
+/* ------------------------------------------------------------ itinerary */
+
+.slot {
+  display: grid;
+  grid-template-columns: 128px minmax(0, 1fr);
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid #1e242e;
+}
+
+.slot:last-child {
+  border-bottom: 0;
+}
+
+.slot-when {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-faint);
+  padding-top: 2px;
+}
+
+.booking {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.booking + .booking {
+  margin-top: 8px;
+}
+
+.booking-name {
+  min-width: 0;
+}
+
+.booking-name b {
+  font-weight: 600;
+}
+
+.booking-cat {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-right: 8px;
+  vertical-align: 1px;
+}
+
+.booking-cat.transport {
+  color: var(--transport);
+  background: #12233a;
+}
+
+.booking-cat.stay {
+  color: var(--stay);
+  background: #241c3a;
+}
+
+.booking-cat.activity {
+  color: var(--activity);
+  background: #10302b;
+}
+
+.booking-price {
+  font-family: var(--mono);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.slot-empty {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--bad);
+  letter-spacing: 0.06em;
+}
+
+/* A row that just changed gets a brief flash, so the eye lands on it. */
+@keyframes flash {
+  from {
+    background: #1d2c40;
+  }
+  to {
+    background: transparent;
+  }
+}
+
+.slot.changed {
+  animation: flash 1400ms ease-out;
+}
+
+/* --------------------------------------------------------------- budget */
+
+.cat {
+  margin-bottom: 16px;
+}
+
+.cat:last-child {
+  margin-bottom: 0;
+}
+
+.cat-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.cat-name {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.cat-figures {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.cat-figures .over {
+  color: var(--bad);
+  font-weight: 700;
+}
+
+.bar {
+  position: relative;
+  height: 14px;
+  border-radius: 7px;
+  background: #0b0e13;
+  border: 1px solid #212832;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 7px 0 0 7px;
+  transition: width 600ms cubic-bezier(0.4, 0, 0.2, 1), background 300ms ease;
+}
+
+.cat.transport .bar-fill {
+  background: var(--transport);
+}
+
+.cat.stay .bar-fill {
+  background: var(--stay);
+}
+
+.cat.activity .bar-fill {
+  background: var(--activity);
+}
+
+.cat.is-over .bar-fill {
+  background: var(--bad);
+}
+
+/* The allocation line. When spend passes it, the bar visibly runs past. */
+.bar-tick {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--ink);
+  opacity: 0.65;
+  transition: left 600ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.cat-legend {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 5px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+
+/* ---------------------------------------------------------------- trace */
+
+.trace {
+  overflow-y: auto;
+  flex: 1 1 auto;
+  padding-right: 6px;
+  scroll-behavior: smooth;
+}
+
+.trace-empty {
+  color: var(--ink-faint);
+  font-size: 14px;
+  margin: 0;
+}
+
+.trace-status {
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--ink-faint);
+}
+
+.trace-status.live {
+  color: var(--accent);
+}
+
+.entry {
+  margin-bottom: 12px;
+  animation: rise 220ms ease-out;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.entry-turn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 20px 0 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.entry-turn::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--panel-edge);
+}
+
+.entry-disruption {
+  border-left: 3px solid var(--warn);
+  background: #1d1710;
+  border-radius: 0 8px 8px 0;
+  padding: 10px 14px;
+}
+
+.entry-disruption .kind {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--warn);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.entry-disruption p {
+  margin: 4px 0 0;
+}
+
+.entry-disruption ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  color: var(--ink-soft);
+  font-size: 13px;
+}
+
+.entry-reasoning {
+  color: var(--ink-soft);
+  font-size: 14px;
+  white-space: pre-wrap;
+  border-left: 2px solid var(--panel-edge);
+  padding-left: 14px;
+}
+
+.entry-call {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  background: #11161d;
+  border: 1px solid var(--panel-edge);
+  border-radius: 8px;
+  padding: 9px 12px;
+}
+
+.entry-call .tool {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.entry-call .arg {
+  display: block;
+  color: var(--ink-soft);
+  padding-left: 16px;
+}
+
+.entry-call .arg em {
+  color: var(--ink-faint);
+  font-style: normal;
+}
+
+.entry-result {
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 13.5px;
+  border: 1px solid transparent;
+}
+
+.entry-result .verdict {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  font-weight: 700;
+  margin-right: 8px;
+}
+
+.entry-result.ok {
+  background: #101d14;
+  border-color: #1d3b25;
+}
+
+.entry-result.ok .verdict {
+  color: var(--ok);
+}
+
+/* The dramatic beat. A refusal should be impossible to miss on a recording. */
+.entry-result.rejected {
+  background: #2a1211;
+  border-color: var(--bad);
+  box-shadow: 0 0 0 1px rgba(244, 86, 74, 0.25);
+}
+
+.entry-result.rejected .verdict {
+  color: var(--bad);
+}
+
+.entry-result .reason {
+  display: block;
+  margin-top: 4px;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--bad);
+}
+
+.entry-notice {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+.entry-failed {
+  border: 1px solid var(--bad);
+  background: #2a1211;
+  border-radius: 8px;
+  padding: 10px 14px;
+  white-space: pre-wrap;
+  font-size: 13.5px;
+}
+
+/* The traveller facing report, the last thing on screen. */
+.entry-report {
+  border: 1px solid var(--ok);
+  background: #0f1a12;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-top: 18px;
+}
+
+.entry-report h3 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ok);
+}
+
+.entry-report pre {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  color: var(--ink);
+}
+
+.entry-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  padding: 12px 14px;
+  border: 1px solid var(--panel-edge);
+  border-radius: 10px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.entry-summary b {
+  color: var(--ink);
+}
+
+.entry-summary .held {
+  color: var(--ok);
+}
+
+.entry-summary .broken {
+  color: var(--bad);
+}

@@ -24,6 +24,12 @@
     "note": "A cascade with no clean answer. Day 1 Evening has nothing left to book, so the agent has to accept a gap, say so honestly, and put the freed money somewhere useful."
   },
   {
+    "id": "no-donor-left",
+    "title": "The only replacement busts its category and nobody can lend",
+    "disruptionIds": ["d8", "d9", "d10"],
+    "note": "The forced refusal. Day 2 Morning empties and the only option left for it is the Rs 3,200 balloon, which is Rs 700 more than activity has. The hotel spike leaves stay with Rs 100 spare and transport has Rs 450, so the whole trip can lend Rs 550 against a Rs 700 gap and reallocate_budget is refused whichever donor is asked. The cheap dorm that would have paid for it is sold out too. Nothing works until the agent spends less somewhere first, for example dropping the private cab to the auto pass, which frees real allocation, then reallocating, then rebooking."
+  },
+  {
     "id": "double-hit",
     "title": "A cancelled tour and a hotel price spike at once",
     "disruptionIds": ["d1", "d4"],

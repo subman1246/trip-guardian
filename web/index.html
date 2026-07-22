@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Trip Guardian</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="masthead">
+      <div class="masthead-left">
+        <h1>Trip Guardian</h1>
+        <p class="tagline">
+          An autonomous agent defending one itinerary and one fixed budget, live.
+        </p>
+      </div>
+      <div class="masthead-right">
+        <span class="chip" id="provider-chip">connecting</span>
+        <span class="chip chip-quiet">key stays on the server</span>
+      </div>
+    </header>
+
+    <nav class="controls" aria-label="Scenarios">
+      <span class="controls-label">Fire a disruption</span>
+      <div class="scenario-buttons" id="scenario-buttons"></div>
+      <button class="btn btn-reset" id="reset-button" type="button">Reset trip</button>
+    </nav>
+
+    <p class="scenario-note" id="scenario-note"></p>
+
+    <main class="layout">
+      <section class="panel" aria-labelledby="itinerary-heading">
+        <h2 id="itinerary-heading">Itinerary</h2>
+        <div id="itinerary"></div>
+        <div class="panel-foot">
+          <span>Itinerary total</span>
+          <strong id="itinerary-total">Rs 0</strong>
+        </div>
+      </section>
+
+      <section class="panel" aria-labelledby="budget-heading">
+        <h2 id="budget-heading">Budget</h2>
+        <div id="budget"></div>
+        <div class="panel-foot">
+          <span>Total spent</span>
+          <strong id="budget-total">Rs 0</strong>
+        </div>
+      </section>
+
+      <section class="panel panel-trace" aria-labelledby="trace-heading">
+        <h2 id="trace-heading">
+          Reasoning trace
+          <span class="trace-status" id="trace-status">idle</span>
+        </h2>
+        <div id="trace" class="trace" aria-live="polite">
+          <p class="trace-empty">
+            Pick a scenario above. The disruption lands, the agent reasons, the tools
+            answer, and both panels on the left move as it works.
+          </p>
+        </div>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

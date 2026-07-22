@@ -11,7 +11,7 @@ Built for a hackathon, Track A (Agentic AI).
 
 ## Status
 
-Prompts 1, 2 and 3 of 4 are done.
+All four prompts are done.
 
 - **Prompt 1, the mock world.** A small handmade JSON dataset. No external data
   source, no booking API.
@@ -20,8 +20,9 @@ Prompts 1, 2 and 3 of 4 are done.
 - **Prompt 3, the autonomous agent.** A Gemini driven reasoning loop that reads
   the damage, decides for itself what to do, calls the real tools, adapts when
   they refuse it, and reports the tradeoff it made.
-
-Prompt 4 adds a thin demo UI.
+- **Prompt 4, the demo UI.** A thin server that streams a live run to a plain
+  HTML page, plus `no-donor-left`, a scenario where every direct repair is
+  arithmetically refused.
 
 ## Run it
 
@@ -31,6 +32,8 @@ npm run world                        # print the starting trip state
 npm run tools-demo                   # drive the tools through a fixed script, no AI
 npm run agent-demo -- --list         # show the scenarios
 npm run agent-demo -- <scenario-id>  # let the agent loose on one
+npm run verify-scenario -- <id>      # check a scenario's arithmetic, no AI
+npm run demo                         # the browser UI on http://localhost:5173
 npm run typecheck                    # tsc --noEmit
 ```
 
@@ -78,8 +81,61 @@ retries automatically, printing a line so the run does not look frozen.
 | `transport-squeeze` | **The forced tradeoff.** No amount of rebooking alone can fix it, the agent has to reallocate from another category first. |
 | `evening-collapse` | A cascade with no clean answer. A slot has nothing left to book, so the agent has to accept a gap and say so. |
 | `double-hit` | Two independent breaks at once. It has to notice both. |
+| `no-donor-left` | **The forced refusal.** The only replacement for the empty slot busts activity by Rs 700, and the whole trip can only lend Rs 550, so no rebooking and no reallocation works until the agent spends less somewhere first. |
 
 Ad hoc combinations work too: `npm run agent-demo -- -d d1,d4`.
+
+`npm run verify-scenario -- <id>` checks a scenario's arithmetic offline, with no
+AI and no network: whether a straightforward first move exists (which would mean
+no refusal ever fires) and whether a real path to a repaired trip exists at all.
+
+### On forcing a refusal
+
+`no-donor-left` is built so that every direct repair is refused. The verifier
+proves it: rebooking the balloon is refused for `category_would_go_negative`,
+and reallocating the Rs 700 is refused for `insufficient_allocation` from either
+donor, because transport has Rs 450 spare and stay has Rs 100. Even emptying both
+donors completely yields Rs 550 against a Rs 700 gap.
+
+What that does **not** do is guarantee the refusal appears in a live trace, and it
+is worth being precise about why. Cutting spend is always legal: swapping down to
+a cheaper option can never push a category further over. So for any repairable
+trip there exists an order (every cut first, then the reallocations, then the new
+booking) that reaches a valid end state with zero refusals. An agent that plans
+the whole sequence before acting will find that order and never be refused. With
+`openai/gpt-oss-120b`, which reasons at length before its first mutating call,
+that is exactly what happens: it works out that the donors are short, downgrades
+the cab, then reallocates, then books.
+
+Forcing a refusal on camera would need a tool change, not a data change, and the
+tools are deliberately left alone. The offline harness (`npm run tools-demo`,
+step 8) is where the reject-and-adapt path is demonstrated deterministically.
+
+## The demo UI
+
+```bash
+npm run demo                         # http://localhost:5173
+```
+
+A thin page for watching one run. Three regions: the itinerary by time slot, the
+per category budget bars, and the reasoning trace streaming in live. A row of
+buttons fires any scenario, and a reset button puts the trip back to how it was
+booked, so a scenario can be demoed over and over without restarting.
+
+**The key never reaches the browser.** The agent runs in the server process.
+`src/agent/config.ts` reads the key from the environment there, and it is never
+put into a response, a stream event or a served file. The page has no model
+client in it, and the only origin it talks to is its own server.
+
+Events reach the page over Server Sent Events. The agent already reports through
+`AgentObserver`, which is a one way stream of events with nothing coming back
+from the browser in between, so SSE fits with no dependency and no protocol
+upgrade. Observer hooks are synchronous and cannot wait, so they push onto a
+queue and a separate pump drains it with a gap between events, which is what
+makes a run readable at human speed rather than arriving in one burst.
+
+Each run resets to the trip as booked before firing, so a scenario behaves the
+same on the tenth demo as on the first.
 
 ## Layout
 
@@ -117,10 +173,20 @@ src/
     errors.ts         turns quota and auth failures into a plain fix
     loop.ts           the reasoning loop itself
     trace.ts          the visible reasoning trace
+  server/
+    server.ts         node:http, serves the page and streams a run over SSE
+    session.ts        the one trip the demo server looks after, and its reset
+    views.ts          turns World and TripState into the JSON the page draws
+web/
+  index.html          the three panels and the scenario buttons
+  styles.css          styling, tuned for legibility in a screen recording
+  app.js              subscribes to the stream and redraws, no dependencies
 scripts/
   show-world.ts       npm run world
   tools-demo.ts       npm run tools-demo
   agent-demo.ts       npm run agent-demo
+  verify-scenario.ts  npm run verify-scenario
+  serve.ts            npm run demo
 ```
 
 ## How the agent works

@@ -47,5 +47,26 @@
     "optionId": "t1",
     "newPrice": 4000,
     "message": "A cricket match weekend has cleared out the Shatabdi. The only seats left are premium."
+  },
+  {
+    "id": "d8",
+    "kind": "activity_cancelled",
+    "optionId": "a5",
+    "timeSlot": "Day 2 Morning",
+    "message": "Hawa Mahal and Jantar Mantar are shut for a heritage survey. Your Day 2 morning walk is cancelled and refunded."
+  },
+  {
+    "id": "d9",
+    "kind": "price_spike",
+    "optionId": "s2",
+    "newPrice": 4900,
+    "message": "A literature festival has taken the city. Hotel Pearl Palace has moved your room onto festival rates."
+  },
+  {
+    "id": "d10",
+    "kind": "venue_closed",
+    "optionId": "s1",
+    "timeSlot": "Trip",
+    "message": "Zostel Jaipur has sold out its dorms for the festival weekend. The cheap bed is gone."
   }
 ]
