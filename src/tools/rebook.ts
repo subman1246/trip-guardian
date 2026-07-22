@@ -107,8 +107,14 @@ export function rebookSlot(
   const categoryBefore = state.budget.byCategory[added.category];
   const categoryAfter = candidate.budget.byCategory[added.category];
 
-  // Refuse to overspend a category. The caller can reallocate and try again.
-  if (categoryAfter.remaining < 0) {
+  // Refuse to create or worsen an overspend. A swap that leaves the category
+  // negative is still allowed when it is strictly better than where we started,
+  // otherwise a price spike would trap the trip: every repair inside that
+  // category would be blocked for not fixing the whole gap in one move.
+  const improvesAnOverspend =
+    categoryBefore.remaining < 0 && categoryAfter.remaining > categoryBefore.remaining;
+
+  if (categoryAfter.remaining < 0 && !improvesAnOverspend) {
     const shortfall = -categoryAfter.remaining;
     return fail(
       state,
@@ -125,10 +131,16 @@ export function rebookSlot(
       : priceDelta < 0
         ? `saving ${formatINR(-priceDelta)}`
         : `costing ${formatINR(priceDelta)} more`;
-  const summary =
+  const base =
     removed === null
       ? `Booked "${added.name}" for ${added.timeSlot}, ${formatINR(added.price)}.`
       : `Swapped "${removed.name}" for "${added.name}" in ${added.timeSlot}, ${movement}.`;
+
+  // If the category is still over, say so, so the caller knows the job is not done.
+  const summary =
+    categoryAfter.remaining < 0
+      ? `${base} ${added.category} is still ${formatINR(-categoryAfter.remaining)} over its allocation, keep going.`
+      : base;
 
   return succeed(candidate, summary, {
     timeSlot: added.timeSlot,

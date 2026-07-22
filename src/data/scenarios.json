@@ -1,0 +1,32 @@
+[
+  {
+    "id": "cancelled-tour",
+    "title": "The headline activity is cancelled",
+    "disruptionIds": ["d1"],
+    "note": "The simplest shape. One slot goes empty and one option is closed. A warm up."
+  },
+  {
+    "id": "cab-spike",
+    "title": "The local cab is repriced mid trip",
+    "disruptionIds": ["d2"],
+    "note": "Transport goes over its allocation. There is a cheap fix inside the category if the agent looks."
+  },
+  {
+    "id": "transport-squeeze",
+    "title": "Train fares surge, there is no cheap way into the city",
+    "disruptionIds": ["d7"],
+    "note": "The forced tradeoff. Even the cheapest arrival plus the cheapest local transport costs more than the transport allocation, so no amount of rebooking alone can fix it. The agent has to reallocate from another category first, then rebook."
+  },
+  {
+    "id": "evening-collapse",
+    "title": "The evening plan and its only fallback both die",
+    "disruptionIds": ["d5", "d3"],
+    "note": "A cascade with no clean answer. Day 1 Evening has nothing left to book, so the agent has to accept a gap, say so honestly, and put the freed money somewhere useful."
+  },
+  {
+    "id": "double-hit",
+    "title": "A cancelled tour and a hotel price spike at once",
+    "disruptionIds": ["d1", "d4"],
+    "note": "Two independent breaks in one go. The agent has to notice both, not stop after the first."
+  }
+]

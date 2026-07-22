@@ -40,5 +40,12 @@
     "optionId": "a6",
     "newPrice": 2400,
     "message": "The balloon operator has released last minute seats at a lower fare."
+  },
+  {
+    "id": "d7",
+    "kind": "price_spike",
+    "optionId": "t1",
+    "newPrice": 4000,
+    "message": "A cricket match weekend has cleared out the Shatabdi. The only seats left are premium."
   }
 ]

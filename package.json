@@ -10,6 +10,7 @@
   "scripts": {
     "world": "tsx scripts/show-world.ts",
     "tools-demo": "tsx scripts/tools-demo.ts",
+    "agent-demo": "tsx scripts/agent-demo.ts",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit"
   },
@@ -17,5 +18,8 @@
     "@types/node": "^24.3.0",
     "tsx": "^4.20.3",
     "typescript": "^5.9.2"
+  },
+  "dependencies": {
+    "@google/genai": "^2.12.0"
   }
 }
