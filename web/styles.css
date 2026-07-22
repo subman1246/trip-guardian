@@ -1,624 +1,1319 @@
 /*
- * Styling for the demo page.
+ * Trip Guardian.
  *
- * The job is legibility in a screen recording, not decoration. Big type, high
- * contrast, one accent colour, and one loud colour reserved for the thing the
- * demo is about: a tool refusing the agent.
+ * VISUAL DIRECTION: obsidian and gold. A deep green black ground, warm rather
+ * than the usual blue black dashboard, with antique gold for structure, and
+ * parchment for text. A serif carries the display headings, a sans carries the
+ * prose, and a mono carries every number and the trace, so money always reads as
+ * data. The palette is borrowed from Jaipur itself: indigo, terracotta and
+ * pistachio for the three budget categories, vermilion for danger.
+ *
+ * LEGIBILITY FIRST. This gets screen recorded and compressed, so nothing here
+ * relies on subtle tone. Body text sits above 8:1 against its panel, the gold
+ * above 9:1, and the danger vermilion above 6:1. There is no thin text over a
+ * busy background anywhere.
+ *
+ * MOTION SERVES MEANING. The only things that move on their own are things that
+ * changed: a budget bar the agent moved, an itinerary row it rebooked, a slot
+ * that went empty, a category that went negative. Decoration holds still.
  */
 
 :root {
-  --bg: #0e1116;
-  --panel: #161b22;
-  --panel-edge: #262d38;
-  --ink: #e8edf4;
-  --ink-soft: #9aa6b6;
-  --ink-faint: #6b7787;
+  /* ground */
+  --bg: #090f0d;
+  --bg-panel: #101917;
+  --bg-raised: #16211e;
+  --bg-sunk: #0b1211;
+  --edge: #263430;
+  --edge-soft: #1c2724;
 
-  --accent: #4c9aff;
-  --ok: #3fb950;
-  --warn: #d9a441;
-  --bad: #f4564a;
+  /* ink, on the panel ground */
+  --ink: #f4ecdd;
+  --ink-soft: #c5b9a4;
+  --ink-faint: #9a8f7d;
 
-  --transport: #4c9aff;
-  --stay: #a97bff;
-  --activity: #2fbfa4;
+  /* structure */
+  --gold: #e3bc63;
+  --gold-dim: #a8873c;
+  --gold-wash: rgba(227, 188, 99, 0.09);
 
-  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  /* the three categories */
+  --transport: #7fb6d4;
+  --stay: #e39a6b;
+  --activity: #9ccb74;
+
+  /* verdicts */
+  --ok: #7ed496;
+  --bad: #ff6b52;
+  --bad-wash: rgba(255, 107, 82, 0.11);
+
+  --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia,
+    "Times New Roman", serif;
   --sans: ui-sans-serif, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+
+  --ease: cubic-bezier(0.22, 0.68, 0.32, 1);
+  --radius: 12px;
 }
 
 * {
   box-sizing: border-box;
 }
 
+html,
 body {
   margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
   background: var(--bg);
   color: var(--ink);
   font-family: var(--sans);
   font-size: 15px;
-  line-height: 1.5;
+  line-height: 1.55;
+  overflow: hidden;
+  /* A single, very soft warm bloom top left. Static, so it never competes. */
+  background-image: radial-gradient(
+    120ch 70ch at 12% -10%,
+    rgba(227, 188, 99, 0.05),
+    transparent 60%
+  );
 }
 
-/* ------------------------------------------------------------- masthead */
-
-.masthead {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  align-items: baseline;
-  justify-content: space-between;
-  padding: 20px 24px 12px;
-  border-bottom: 1px solid var(--panel-edge);
-}
-
-.masthead h1 {
-  margin: 0;
-  font-size: 22px;
-  letter-spacing: 0.2px;
-}
-
-.tagline {
-  margin: 4px 0 0;
-  color: var(--ink-soft);
-  font-size: 14px;
-}
-
-.masthead-right {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.chip {
-  font-family: var(--mono);
-  font-size: 12px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--panel-edge);
-  background: var(--panel);
-  color: var(--ink-soft);
-  white-space: nowrap;
-}
-
-.chip-quiet {
-  color: var(--ink-faint);
-}
-
-/* ---------------------------------------------------------------- setup */
-
-.setup {
-  margin: 16px 24px 4px;
-  padding: 16px 18px;
-  background: var(--panel);
-  border: 1px solid var(--panel-edge);
-  border-radius: 10px;
-}
-
-.setup h2 {
-  margin: 0 0 12px;
-  font-size: 13px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--ink-faint);
+h1,
+h2,
+h3 {
+  font-family: var(--serif);
   font-weight: 600;
+  letter-spacing: 0.01em;
+  margin: 0;
 }
+
+/* ==================================================== the two page stage */
+
+.stage {
+  position: relative;
+  height: 100%;
+  overflow: hidden;
+}
+
+.page {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity 380ms var(--ease),
+    transform 460ms var(--ease),
+    visibility 0s linear 460ms;
+}
+
+.page.is-active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: none;
+  transition:
+    opacity 380ms var(--ease),
+    transform 460ms var(--ease),
+    visibility 0s;
+}
+
+/* Plan sits behind and lifts away. Studio arrives from below. Going back
+   reverses both, so the pair reads as one movement rather than two. */
+.page-plan {
+  transform: translateY(-2.5%) scale(0.985);
+  overflow-y: auto;
+}
+
+.page-studio {
+  transform: translateY(3%);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ============================================================ the mark */
+
+.wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--gold);
+}
+
+.wordmark .mark {
+  width: 1em;
+  height: 1.08em;
+  flex: none;
+}
+
+.wordmark-text {
+  font-family: var(--serif);
+  letter-spacing: 0.005em;
+  color: var(--ink);
+}
+
+.wordmark-thin {
+  color: var(--gold);
+  font-style: italic;
+  margin-left: 0.3ch;
+}
+
+.wordmark-lg {
+  font-size: 34px;
+}
+
+.wordmark-sm {
+  font-size: 17px;
+}
+
+/* ============================================================ page: PLAN */
+
+.plan-inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 46px 32px 72px;
+}
+
+.plan-masthead {
+  margin-bottom: 34px;
+}
+
+.plan-tagline {
+  margin: 12px 0 0;
+  max-width: 62ch;
+  font-size: 16.5px;
+  color: var(--ink-soft);
+}
+
+.plan-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.card-setup {
+  grid-column: 1 / -1;
+}
+
+.card {
+  background: var(--bg-panel);
+  border: 1px solid var(--edge);
+  border-radius: var(--radius);
+  padding: 24px 26px 26px;
+  /* A hairline of gold along the top edge, the only ornament on the card. */
+  box-shadow: inset 0 1px 0 rgba(227, 188, 99, 0.14);
+}
+
+.card-title {
+  font-size: 21px;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.card-index {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: var(--gold-dim);
+  border: 1px solid var(--edge);
+  border-radius: 5px;
+  padding: 3px 6px;
+  position: relative;
+  top: -2px;
+}
+
+/* ------------------------------------------------------- the setup form */
 
 .setup-form {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  gap: 12px;
+  gap: 16px;
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 7px;
 }
 
-.field span {
+.field-label {
   font-size: 11px;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.15em;
   text-transform: uppercase;
   color: var(--ink-faint);
 }
 
 .field input {
   font-family: var(--mono);
-  font-size: 14px;
-  width: 12ch;
-  padding: 7px 9px;
-  border-radius: 8px;
-  border: 1px solid var(--panel-edge);
-  background: var(--bg);
+  font-size: 20px;
+  width: 7ch;
+  padding: 11px 13px;
+  border-radius: 9px;
+  border: 1px solid var(--edge);
+  background: var(--bg-sunk);
   color: var(--ink);
+  transition: border-color 160ms var(--ease), box-shadow 160ms var(--ease);
 }
 
-#setup-days {
-  width: 6ch;
+.field-money {
+  display: flex;
+  align-items: stretch;
+  border-radius: 9px;
+  border: 1px solid var(--edge);
+  background: var(--bg-sunk);
+  transition: border-color 160ms var(--ease), box-shadow 160ms var(--ease);
 }
 
+.field-money:focus-within,
 .field input:focus {
   outline: none;
-  border-color: var(--accent);
+  border-color: var(--gold-dim);
+  box-shadow: 0 0 0 3px var(--gold-wash);
+}
+
+.field-prefix {
+  font-family: var(--mono);
+  font-size: 15px;
+  color: var(--ink-faint);
+  display: flex;
+  align-items: center;
+  padding: 0 4px 0 13px;
+}
+
+.field-money input {
+  border: none;
+  background: none;
+  padding-left: 4px;
+  width: 10ch;
+}
+
+.field-money input:focus {
+  box-shadow: none;
 }
 
 .field input:disabled {
   opacity: 0.5;
 }
 
-.btn-build {
-  border-color: var(--accent);
-  background: #16283f;
-}
-
 .setup-hint {
-  flex: 1 1 34ch;
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--ink-faint);
-  max-width: 70ch;
-}
-
-/* The feasibility refusal. Pure arithmetic, no model involved, so it is stated
-   plainly rather than dressed up as an error. */
-.setup-error {
-  margin: 14px 0 0;
-  padding: 11px 13px;
-  border-radius: 8px;
-  border: 1px solid #5a2a26;
-  background: #241513;
-  color: #ffb3ac;
-  font-size: 13px;
-  line-height: 1.55;
-}
-
-.setup-summary {
-  margin-top: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.setup-head {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 18px;
-  align-items: baseline;
-  font-size: 13px;
-  color: var(--ink-soft);
-}
-
-.setup-head strong {
-  color: var(--ink);
+  margin: 18px 0 0;
+  max-width: 82ch;
   font-size: 14px;
-}
-
-.setup-headroom {
-  color: var(--ok);
-  font-family: var(--mono);
-}
-
-.setup-table {
-  display: grid;
-  grid-template-columns: max-content repeat(4, max-content);
-  gap: 5px 22px;
-  font-family: var(--mono);
-  font-size: 12.5px;
-}
-
-.setup-th {
-  font-family: var(--sans);
-  font-size: 10.5px;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--ink-faint);
-}
-
-.setup-cat {
-  font-family: var(--sans);
-}
-
-.setup-cat.transport { color: var(--transport); }
-.setup-cat.stay { color: var(--stay); }
-.setup-cat.activity { color: var(--activity); }
-
-.setup-room {
-  color: var(--ok);
-}
-
-.setup-rule {
-  margin: 0;
-  padding-left: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  font-size: 12.5px;
-  line-height: 1.55;
   color: var(--ink-soft);
-  max-width: 110ch;
 }
 
-/* ------------------------------------------------------------- controls */
+.setup-hint strong {
+  color: var(--gold);
+  font-weight: 600;
+}
 
-.controls {
+/* ------------------------------------------------ the feasibility answer */
+
+/*
+ * Deliberately NOT an error dump. It is a calm card with the one number that
+ * fixes it set large, because the useful content is the minimum budget.
+ */
+/* display:flex would otherwise beat the hidden attribute, so say so explicitly. */
+.feasibility[hidden] {
+  display: none;
+}
+
+.feasibility {
+  margin-top: 20px;
+  display: flex;
+  gap: 15px;
+  padding: 18px 20px;
+  border-radius: 10px;
+  border: 1px solid var(--gold-dim);
+  background: linear-gradient(180deg, rgba(227, 188, 99, 0.08), rgba(227, 188, 99, 0.03));
+  animation: rise-in 320ms var(--ease);
+}
+
+.feasibility-mark {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1.5px solid var(--gold);
+  color: var(--gold);
+  font-family: var(--serif);
+  font-size: 16px;
+  display: grid;
+  place-items: center;
+  margin-top: 2px;
+}
+
+.feasibility-title {
+  font-size: 17px;
+  color: var(--gold);
+  margin-bottom: 5px;
+}
+
+.feasibility-text {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 14.5px;
+  max-width: 84ch;
+}
+
+.feasibility-figures {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-  padding: 14px 24px;
+  gap: 10px 30px;
+  margin: 14px 0 0;
 }
 
-.controls-label {
-  font-size: 12px;
+.feasibility-figures div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.feasibility-figures dt {
+  font-size: 10.5px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--ink-faint);
-  margin-right: 4px;
+}
+
+.feasibility-figures dd {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 19px;
+  color: var(--ink);
+}
+
+.feasibility-figures .is-key dd {
+  color: var(--gold);
+  font-size: 24px;
+}
+
+/* --------------------------------------------------- the trip, day by day */
+
+.trip-figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 26px;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  border-bottom: 1px solid var(--edge-soft);
+}
+
+.trip-figures div {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.trip-figures dt,
+.trip-figures .fig-label {
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+}
+
+.trip-figures .fig-value {
+  font-family: var(--mono);
+  font-size: 16px;
+  color: var(--ink);
+}
+
+.trip-figures .is-held .fig-value {
+  color: var(--gold);
+}
+
+.plan-day {
+  margin-bottom: 16px;
+}
+
+.plan-day-label {
+  font-family: var(--serif);
+  font-size: 15px;
+  color: var(--gold);
+  letter-spacing: 0.02em;
+  padding-bottom: 6px;
+  margin-bottom: 8px;
+  border-bottom: 1px solid var(--edge-soft);
+}
+
+.plan-line {
+  display: grid;
+  grid-template-columns: 8.5ch minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: baseline;
+  padding: 4px 0;
+}
+
+.plan-when {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink-faint);
+  text-transform: lowercase;
+}
+
+.plan-what {
+  color: var(--ink);
+  font-size: 14.5px;
+}
+
+.plan-price {
+  font-family: var(--mono);
+  font-size: 13.5px;
+  color: var(--ink-soft);
+}
+
+.plan-line.is-empty .plan-what {
+  color: var(--ink-faint);
+  font-style: italic;
+}
+
+/* ------------------------------------------------- the allocation table */
+
+.alloc-table {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) repeat(4, minmax(0, 1fr));
+  gap: 0;
+  font-family: var(--mono);
+  font-size: 13px;
+  margin-bottom: 22px;
+}
+
+.alloc-table > span {
+  padding: 8px 10px 8px 0;
+  border-bottom: 1px solid var(--edge-soft);
+}
+
+.alloc-th {
+  font-family: var(--sans);
+  font-size: 10px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  border-bottom-color: var(--edge) !important;
+}
+
+.alloc-num {
+  text-align: right;
+  color: var(--ink);
+}
+
+.alloc-name {
+  font-family: var(--sans);
+  font-size: 13.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.alloc-name::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: currentColor;
+  flex: none;
+}
+
+.alloc-name.transport {
+  color: var(--transport);
+}
+.alloc-name.stay {
+  color: var(--stay);
+}
+.alloc-name.activity {
+  color: var(--activity);
+}
+
+.alloc-room {
+  text-align: right;
+  color: var(--gold);
+}
+
+.alloc-over {
+  color: var(--bad);
+  font-weight: 600;
+}
+
+.split-subhead {
+  font-size: 15px;
+  color: var(--ink);
+  margin-bottom: 10px;
+}
+
+.split-rule {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+  counter-reset: rule;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.split-rule li {
+  counter-increment: rule;
+  position: relative;
+  padding-left: 30px;
+  font-size: 13.8px;
+  color: var(--ink-soft);
+  max-width: 78ch;
+}
+
+.split-rule li::before {
+  content: counter(rule);
+  position: absolute;
+  left: 0;
+  top: 1px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid var(--gold-dim);
+  color: var(--gold);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  display: grid;
+  place-items: center;
+}
+
+/* -------------------------------------------------------------- the CTA */
+
+.plan-cta {
+  margin-top: 34px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.plan-cta-note {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--ink-faint);
+}
+
+/* ============================================================== buttons */
+
+.btn {
+  font-family: var(--sans);
+  font-size: 13.5px;
+  padding: 10px 16px;
+  border-radius: 9px;
+  border: 1px solid var(--edge);
+  background: var(--bg-raised);
+  color: var(--ink);
+  cursor: pointer;
+  transition:
+    border-color 150ms var(--ease),
+    background 150ms var(--ease),
+    transform 150ms var(--ease),
+    color 150ms var(--ease);
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--gold-dim);
+  background: #1b2622;
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.btn:focus-visible {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px var(--gold-wash);
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: #17110326;
+  color: #1a1305;
+  font-weight: 650;
+  font-size: 14.5px;
+  padding: 12px 22px;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: #f0cd7c;
+  border-color: #f0cd7c;
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+}
+
+.btn-enter {
+  font-family: var(--serif);
+  font-size: 18px;
+  padding: 14px 30px;
+  border-color: var(--gold-dim);
+  background: linear-gradient(180deg, rgba(227, 188, 99, 0.14), rgba(227, 188, 99, 0.05));
+  color: var(--gold);
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-enter:hover:not(:disabled) {
+  background: linear-gradient(180deg, rgba(227, 188, 99, 0.22), rgba(227, 188, 99, 0.09));
+  border-color: var(--gold);
+}
+
+.btn-enter .arrow {
+  width: 19px;
+  height: 19px;
+  transition: transform 200ms var(--ease);
+}
+
+.btn-enter:hover .arrow {
+  transform: translateX(4px);
+}
+
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px 8px 11px;
+}
+
+.btn-back .arrow-back {
+  width: 16px;
+  height: 16px;
+  color: var(--gold);
+  transition: transform 200ms var(--ease);
+}
+
+.btn-back:hover .arrow-back {
+  transform: translateX(-3px);
+}
+
+/* ============================================================ page: STUDIO */
+
+.studio-bar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 13px 24px;
+  border-bottom: 1px solid var(--edge);
+  background: var(--bg-panel);
+  flex: none;
+}
+
+.studio-bar .wordmark-sm {
+  margin-right: auto;
+}
+
+.studio-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--edge);
+  background: var(--bg-sunk);
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.chip-model {
+  color: var(--gold);
+  border-color: var(--gold-dim);
+}
+
+.chip-quiet {
+  color: var(--ink-faint);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chip-quiet .lock {
+  width: 12px;
+  height: 12px;
+  color: var(--activity);
+}
+
+/* ------------------------------------------------------- scenario strip */
+
+.scenario-bar {
+  padding: 11px 24px 10px;
+  border-bottom: 1px solid var(--edge);
+  flex: none;
+}
+
+.scenario-bar-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 9px;
+}
+
+.eyebrow {
+  font-size: 10.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-right: auto;
 }
 
 .scenario-buttons {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
-  gap: 8px;
-  flex: 1 1 auto;
+  gap: 9px;
 }
 
+/* Compact on purpose: eight scenarios have to fit above the fold without
+   pushing the three panels off a recording. */
 .scenario-cell {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  max-width: 34ch;
+  max-width: 27ch;
 }
 
-/* A scenario that cannot run on the current trip. The reason sits under the
-   button as well as on hover, so it reads without a mouse. */
+.scenario-cell .btn {
+  text-align: left;
+  width: 100%;
+  line-height: 1.3;
+  font-size: 12.5px;
+  padding: 7px 12px;
+}
+
+/* The scenario written to be refused, marked so a viewer knows which matters. */
+.btn-headline {
+  border-color: var(--gold-dim);
+  background: linear-gradient(180deg, rgba(227, 188, 99, 0.13), rgba(227, 188, 99, 0.04));
+}
+
+.btn-headline::before {
+  content: "\2726";
+  color: var(--gold);
+  margin-right: 7px;
+}
+
+.btn.is-running {
+  border-color: var(--gold);
+  background: var(--gold-wash);
+  color: var(--gold);
+}
+
+/* Inapplicable: visibly off, but the reason is readable without a mouse. */
 .btn.btn-off {
   border-style: dashed;
-  text-decoration: line-through;
-  text-decoration-color: var(--ink-faint);
+  border-color: var(--edge-soft);
+  background: transparent;
+  color: var(--ink-faint);
+  opacity: 1;
 }
 
 .scenario-reason {
   font-size: 11.5px;
-  line-height: 1.4;
+  line-height: 1.42;
   color: var(--ink-faint);
-  padding: 0 2px;
-}
-
-.btn {
-  font-family: var(--sans);
-  font-size: 13px;
-  padding: 8px 14px;
-  border-radius: 8px;
-  border: 1px solid var(--panel-edge);
-  background: var(--panel);
-  color: var(--ink);
-  cursor: pointer;
-  transition: border-color 120ms ease, background 120ms ease;
-}
-
-.btn:hover:not(:disabled) {
-  border-color: var(--accent);
-}
-
-.btn:disabled {
-  opacity: 0.42;
-  cursor: not-allowed;
-}
-
-.btn.is-running {
-  border-color: var(--accent);
-  background: #16283f;
-  opacity: 1;
-}
-
-/* The scenario built to be refused. Marked so a viewer knows which one matters. */
-.btn.btn-headline {
-  border-color: #5a3a2a;
-  background: #221913;
-}
-
-.btn.btn-headline::before {
-  content: "\2605";
-  color: var(--warn);
-  margin-right: 6px;
-}
-
-.btn-reset {
-  margin-left: auto;
+  padding-left: 2px;
+  border-left: 2px solid var(--edge);
+  padding-left: 9px;
 }
 
 .scenario-note {
-  margin: 0 24px;
-  padding: 0;
-  min-height: 20px;
+  margin: 11px 0 0;
+  min-height: 19px;
+  font-size: 13.5px;
   color: var(--ink-soft);
-  font-size: 13px;
-  max-width: 120ch;
+  max-width: 130ch;
 }
 
-/* --------------------------------------------------------------- layout */
+/* --------------------------------------------------------- the three panels */
 
-.layout {
+.studio-grid {
+  flex: 1;
+  min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
-  grid-template-rows: auto auto;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  /*
+   * The itinerary takes the flexible space and the budget takes its content
+   * height. The 210px floor matters: without it the budget's auto row starves
+   * the itinerary down to nothing on a short viewport.
+   */
+  grid-template-rows: minmax(210px, 1fr) auto;
   gap: 16px;
-  padding: 16px 24px 28px;
-  align-items: start;
+  padding: 14px 24px 20px;
+  overflow-y: auto;
 }
 
 .panel {
-  background: var(--panel);
-  border: 1px solid var(--panel-edge);
-  border-radius: 12px;
-  padding: 16px 18px;
-  min-width: 0;
+  background: var(--bg-panel);
+  border: 1px solid var(--edge);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  box-shadow: inset 0 1px 0 rgba(227, 188, 99, 0.1);
 }
 
+/* The trace is the star, so it takes the full height of the right column. */
 .panel-trace {
   grid-column: 2;
   grid-row: 1 / span 2;
-  display: flex;
-  flex-direction: column;
-  max-height: calc(100vh - 190px);
 }
 
-.panel h2 {
-  margin: 0 0 14px;
-  font-size: 12px;
+.panel-itinerary {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+.panel-budget {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+.panel-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 13px 18px 11px;
+  border-bottom: 1px solid var(--edge-soft);
+  flex: none;
+}
+
+.panel-head h2 {
+  font-size: 16px;
+  margin-right: auto;
+}
+
+.panel-figure {
+  font-family: var(--mono);
+  font-size: 13.5px;
+  color: var(--gold);
+}
+
+.panel-body {
+  padding: 8px 18px 16px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/* ------------------------------------------------------------- itinerary */
+
+.day-group + .day-group {
+  margin-top: 12px;
+}
+
+/*
+ * Deliberately NOT sticky. Two day labels pinned at the same offset inside a
+ * short scrolling panel end up painting over the very rows they label, which
+ * hid an empty slot. Legibility beats the flourish.
+ */
+.day-label {
+  font-family: var(--mono);
+  font-size: 10.5px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--ink-faint);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
+  color: var(--gold-dim);
+  padding: 10px 0 6px;
+  border-bottom: 1px solid var(--edge-soft);
+  margin-bottom: 4px;
 }
-
-.panel-foot {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid var(--panel-edge);
-  font-family: var(--mono);
-  font-size: 13px;
-  color: var(--ink-soft);
-}
-
-@media (max-width: 1000px) {
-  .layout {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .panel-trace {
-    grid-column: 1;
-    grid-row: auto;
-    max-height: none;
-  }
-}
-
-/* ------------------------------------------------------------ itinerary */
 
 .slot {
   display: grid;
-  grid-template-columns: 128px minmax(0, 1fr);
+  grid-template-columns: 9ch minmax(0, 1fr);
   gap: 12px;
-  padding: 9px 0;
-  border-bottom: 1px solid #1e242e;
-}
-
-.slot:last-child {
-  border-bottom: 0;
+  padding: 7px 9px 7px 10px;
+  border-radius: 8px;
+  border-left: 2px solid transparent;
+  transition: background 420ms var(--ease), border-color 420ms var(--ease);
 }
 
 .slot-when {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 11px;
   color: var(--ink-faint);
-  padding-top: 2px;
+  padding-top: 3px;
+  text-transform: lowercase;
 }
 
 .booking {
   display: flex;
-  justify-content: space-between;
   align-items: baseline;
-  gap: 12px;
-}
-
-.booking + .booking {
-  margin-top: 8px;
+  gap: 10px;
 }
 
 .booking-name {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
   min-width: 0;
+  flex: 1;
 }
 
 .booking-name b {
-  font-weight: 600;
+  font-weight: 550;
+  font-size: 14px;
 }
 
 .booking-cat {
-  display: inline-block;
   font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.08em;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  padding: 1px 6px;
+  padding: 2px 6px;
   border-radius: 4px;
-  margin-right: 8px;
-  vertical-align: 1px;
+  flex: none;
+  position: relative;
+  top: -1px;
 }
 
 .booking-cat.transport {
   color: var(--transport);
-  background: #12233a;
+  background: rgba(127, 182, 212, 0.14);
 }
-
 .booking-cat.stay {
   color: var(--stay);
-  background: #241c3a;
+  background: rgba(227, 154, 107, 0.14);
 }
-
 .booking-cat.activity {
   color: var(--activity);
-  background: #10302b;
+  background: rgba(156, 203, 116, 0.14);
 }
 
 .booking-price {
   font-family: var(--mono);
   font-size: 13px;
-  white-space: nowrap;
+  color: var(--ink-soft);
+  flex: none;
+}
+
+/* A slot the agent just changed: a gold sweep that fades out. */
+.slot.changed {
+  animation: slot-change 1500ms var(--ease);
+}
+
+@keyframes slot-change {
+  0% {
+    background: rgba(227, 188, 99, 0.24);
+    border-left-color: var(--gold);
+  }
+  55% {
+    background: rgba(227, 188, 99, 0.14);
+    border-left-color: var(--gold);
+  }
+  100% {
+    background: transparent;
+    border-left-color: transparent;
+  }
+}
+
+/* A day slot with nothing in it. Unmissable, and it stays unmissable. */
+.slot.is-gap {
+  background: var(--bad-wash);
+  border-left-color: var(--bad);
 }
 
 .slot-empty {
   font-family: var(--mono);
   font-size: 12px;
+  letter-spacing: 0.08em;
   color: var(--bad);
-  letter-spacing: 0.06em;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
-/* A row that just changed gets a brief flash, so the eye lands on it. */
-@keyframes flash {
-  from {
-    background: #1d2c40;
+.slot-empty::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--bad);
+  animation: gap-pulse 1.9s ease-in-out infinite;
+}
+
+.slot .slot-empty.is-quiet {
+  color: var(--ink-faint);
+}
+
+.slot .slot-empty.is-quiet::before {
+  background: var(--ink-faint);
+  animation: none;
+}
+
+@keyframes gap-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
   }
-  to {
-    background: transparent;
+  50% {
+    opacity: 0.35;
+    transform: scale(0.75);
   }
 }
 
-.slot.changed {
-  animation: flash 1400ms ease-out;
-}
-
-/* --------------------------------------------------------------- budget */
+/* ---------------------------------------------------------------- budget */
 
 .cat {
-  margin-bottom: 16px;
+  padding: 8px 0 9px;
 }
 
-.cat:last-child {
-  margin-bottom: 0;
+.panel-budget .panel-body {
+  overflow: visible;
+  padding-bottom: 12px;
+}
+
+.cat + .cat {
+  border-top: 1px solid var(--edge-soft);
 }
 
 .cat-head {
   display: flex;
-  justify-content: space-between;
   align-items: baseline;
-  gap: 10px;
-  margin-bottom: 6px;
+  gap: 12px;
+  margin-bottom: 7px;
 }
 
 .cat-name {
   font-size: 13px;
-  font-weight: 600;
-  text-transform: capitalize;
+  letter-spacing: 0.04em;
+  margin-right: auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cat-name::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: currentColor;
+}
+
+.cat.transport .cat-name {
+  color: var(--transport);
+}
+.cat.stay .cat-name {
+  color: var(--stay);
+}
+.cat.activity .cat-name {
+  color: var(--activity);
 }
 
 .cat-figures {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 12.5px;
   color: var(--ink-soft);
 }
 
 .cat-figures .over {
   color: var(--bad);
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .bar {
   position: relative;
-  height: 14px;
-  border-radius: 7px;
-  background: #0b0e13;
-  border: 1px solid #212832;
+  height: 11px;
+  border-radius: 6px;
+  background: var(--bg-sunk);
+  border: 1px solid var(--edge-soft);
   overflow: hidden;
 }
 
+/*
+ * The bar is the main thing that moves. 620ms is long enough to be legible in a
+ * recording and short enough that nobody waits for it.
+ */
 .bar-fill {
-  height: 100%;
-  border-radius: 7px 0 0 7px;
-  transition: width 600ms cubic-bezier(0.4, 0, 0.2, 1), background 300ms ease;
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 5px;
+  background: currentColor;
+  transition: width 620ms var(--ease), background 380ms var(--ease);
 }
 
 .cat.transport .bar-fill {
-  background: var(--transport);
+  color: var(--transport);
 }
-
 .cat.stay .bar-fill {
-  background: var(--stay);
+  color: var(--stay);
 }
-
 .cat.activity .bar-fill {
-  background: var(--activity);
+  color: var(--activity);
 }
 
-.cat.is-over .bar-fill {
-  background: var(--bad);
-}
-
-/* The allocation line. When spend passes it, the bar visibly runs past. */
+/* Where the allocation sits. When a category goes over, the fill runs past it. */
 .bar-tick {
   position: absolute;
   top: -2px;
   bottom: -2px;
   width: 2px;
   background: var(--ink);
-  opacity: 0.65;
-  transition: left 600ms cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 0.85;
+  transition: left 620ms var(--ease);
 }
 
 .cat-legend {
   display: flex;
   justify-content: space-between;
-  margin-top: 5px;
+  gap: 12px;
+  margin-top: 6px;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 10.5px;
   color: var(--ink-faint);
 }
 
-/* ---------------------------------------------------------------- trace */
-
-.trace {
-  overflow-y: auto;
-  flex: 1 1 auto;
-  padding-right: 6px;
-  scroll-behavior: smooth;
+/* Over its allocation: red bar, red rule, and a badge. Alarming on purpose. */
+.cat.is-over .bar-fill {
+  color: var(--bad);
 }
 
-.trace-empty {
-  color: var(--ink-faint);
-  font-size: 14px;
-  margin: 0;
+.cat.is-over .bar {
+  border-color: var(--bad);
+  box-shadow: 0 0 0 1px rgba(255, 107, 82, 0.35);
 }
+
+.cat-flag {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  color: var(--bad);
+  border: 1px solid var(--bad);
+  border-radius: 4px;
+  padding: 1px 5px;
+  opacity: 0;
+  transform: scale(0.85);
+  transition: opacity 240ms var(--ease), transform 240ms var(--ease);
+}
+
+.cat.is-over .cat-flag {
+  opacity: 1;
+  transform: none;
+}
+
+/* The moment a category tips negative, once, then it stays red and still. */
+.cat.just-broke {
+  animation: broke 620ms var(--ease);
+}
+
+@keyframes broke {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  15% {
+    transform: translateX(-5px);
+  }
+  35% {
+    transform: translateX(4px);
+  }
+  55% {
+    transform: translateX(-3px);
+  }
+  75% {
+    transform: translateX(2px);
+  }
+}
+
+/* A figure that just changed, briefly lit. */
+.lit {
+  animation: lit 900ms var(--ease);
+}
+
+@keyframes lit {
+  0% {
+    color: var(--gold);
+  }
+  100% {
+    color: inherit;
+  }
+}
+
+.cat-totals {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  padding-top: 11px;
+  border-top: 1px solid var(--edge);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink-soft);
+}
+
+/* ============================================================== the trace */
 
 .trace-status {
   font-family: var(--mono);
   font-size: 11px;
-  text-transform: none;
-  letter-spacing: 0;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   color: var(--ink-faint);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.trace-status::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--ink-faint);
 }
 
 .trace-status.live {
-  color: var(--accent);
+  color: var(--gold);
+}
+
+.trace-status.live::before {
+  background: var(--gold);
+  animation: gap-pulse 1.4s ease-in-out infinite;
+}
+
+.trace {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px 18px 22px;
+  scroll-behavior: smooth;
+}
+
+.trace-empty {
+  margin: 8px 0;
+  color: var(--ink-faint);
+  font-size: 14px;
+  max-width: 56ch;
 }
 
 .entry {
-  margin-bottom: 12px;
-  animation: rise 220ms ease-out;
+  animation: rise-in 300ms var(--ease);
 }
 
-@keyframes rise {
+@keyframes rise-in {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(9px);
   }
   to {
     opacity: 1;
@@ -626,77 +1321,162 @@ body {
   }
 }
 
-.entry-turn {
+/* ------------------------------------------------------ turns, as groups */
+
+/*
+ * Every turn is a container, and the reasoning and calls of that turn sit
+ * inside it under a rule. It reads as the agent's thinking rather than as a
+ * flat log, and it gives the thinking indicator somewhere to live.
+ */
+.turn {
+  margin: 14px 0 0;
+  padding-left: 15px;
+  border-left: 1px solid var(--edge);
+  animation: rise-in 300ms var(--ease);
+}
+
+.turn-head {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 20px 0 10px;
+  margin: 0 0 8px -21px;
+}
+
+.turn-badge {
   font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.16em;
+  font-size: 10px;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
+  color: var(--gold);
+  background: var(--bg-panel);
+  border: 1px solid var(--gold-dim);
+  border-radius: 999px;
+  padding: 3px 10px;
+}
+
+.turn.is-thinking {
+  border-left-color: var(--gold-dim);
+}
+
+/* Not a spinner. The agent is thinking, and this is what that looks like. */
+.thinking {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 12.5px;
   color: var(--ink-faint);
+  font-style: italic;
+  transition: opacity 200ms var(--ease);
 }
 
-.entry-turn::after {
-  content: "";
-  flex: 1;
-  height: 1px;
-  background: var(--panel-edge);
+.thinking-dots {
+  display: inline-flex;
+  gap: 4px;
 }
 
+.thinking-dots i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--gold);
+  animation: think 1.25s ease-in-out infinite;
+}
+
+.thinking-dots i:nth-child(2) {
+  animation-delay: 0.16s;
+}
+.thinking-dots i:nth-child(3) {
+  animation-delay: 0.32s;
+}
+
+@keyframes think {
+  0%,
+  75%,
+  100% {
+    opacity: 0.22;
+    transform: translateY(0);
+  }
+  38% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+.thinking.is-done {
+  display: none;
+}
+
+/* --------------------------------------------------------- entry kinds */
+
+/* The disruption that started it all. */
 .entry-disruption {
-  border-left: 3px solid var(--warn);
-  background: #1d1710;
-  border-radius: 0 8px 8px 0;
-  padding: 10px 14px;
+  margin: 12px 0;
+  padding: 13px 15px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 107, 82, 0.4);
+  border-left-width: 3px;
+  background: var(--bad-wash);
 }
 
 .entry-disruption .kind {
   font-family: var(--mono);
-  font-size: 11px;
-  color: var(--warn);
+  font-size: 10px;
+  letter-spacing: 0.15em;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  color: var(--bad);
+  margin-bottom: 6px;
 }
 
 .entry-disruption p {
-  margin: 4px 0 0;
+  margin: 0 0 8px;
+  font-family: var(--serif);
+  font-size: 15.5px;
+  color: var(--ink);
 }
 
 .entry-disruption ul {
-  margin: 6px 0 0;
-  padding-left: 18px;
+  margin: 0;
+  padding-left: 17px;
+  font-size: 12.8px;
   color: var(--ink-soft);
-  font-size: 13px;
 }
 
+.entry-disruption li {
+  margin: 3px 0;
+}
+
+/* The agent's own words. The most important text on the page, so it gets the
+   serif, the size and the contrast. */
 .entry-reasoning {
-  color: var(--ink-soft);
-  font-size: 14px;
+  margin: 4px 0 10px;
+  font-family: var(--serif);
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--ink);
   white-space: pre-wrap;
-  border-left: 2px solid var(--panel-edge);
-  padding-left: 14px;
+  max-width: 80ch;
 }
 
+/* A tool call, written like the call it is. */
 .entry-call {
+  margin: 8px 0 4px;
   font-family: var(--mono);
-  font-size: 12.5px;
-  background: #11161d;
-  border: 1px solid var(--panel-edge);
+  font-size: 12.3px;
+  color: var(--ink-soft);
+  background: var(--bg-sunk);
+  border: 1px solid var(--edge-soft);
   border-radius: 8px;
   padding: 9px 12px;
 }
 
 .entry-call .tool {
-  color: var(--accent);
-  font-weight: 700;
+  color: var(--gold);
 }
 
 .entry-call .arg {
   display: block;
-  color: var(--ink-soft);
   padding-left: 16px;
+  color: var(--ink-soft);
 }
 
 .entry-call .arg em {
@@ -704,133 +1484,308 @@ body {
   font-style: normal;
 }
 
+/* The verdict. Accepted and rejected must never be mistaken for each other. */
 .entry-result {
+  margin: 0 0 10px;
+  padding: 10px 13px;
   border-radius: 8px;
-  padding: 9px 12px;
-  font-size: 13.5px;
-  border: 1px solid transparent;
-}
-
-.entry-result .verdict {
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.12em;
-  font-weight: 700;
-  margin-right: 8px;
+  border-left: 3px solid;
+  font-size: 13.3px;
 }
 
 .entry-result.ok {
-  background: #101d14;
-  border-color: #1d3b25;
+  border-color: var(--ok);
+  background: rgba(126, 212, 150, 0.07);
+  color: var(--ink-soft);
 }
 
-.entry-result.ok .verdict {
-  color: var(--ok);
-}
-
-/* The dramatic beat. A refusal should be impossible to miss on a recording. */
 .entry-result.rejected {
-  background: #2a1211;
   border-color: var(--bad);
-  box-shadow: 0 0 0 1px rgba(244, 86, 74, 0.25);
+  background: var(--bad-wash);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px rgba(255, 107, 82, 0.22);
 }
 
-.entry-result.rejected .verdict {
-  color: var(--bad);
+.verdict {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  padding: 2px 7px;
+  border-radius: 4px;
+  margin-right: 9px;
+  white-space: nowrap;
+}
+
+.ok .verdict {
+  color: #08150c;
+  background: var(--ok);
+}
+
+.rejected .verdict {
+  color: #1a0603;
+  background: var(--bad);
+  font-weight: 700;
 }
 
 .entry-result .reason {
   display: block;
-  margin-top: 4px;
+  margin-top: 6px;
+  padding-left: 2px;
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: 12px;
   color: var(--bad);
 }
 
+/* A rejection arriving is a beat in the story. One quick flash, then still. */
+.entry-result.rejected {
+  animation: rise-in 300ms var(--ease), reject-flash 900ms var(--ease);
+}
+
+@keyframes reject-flash {
+  0% {
+    box-shadow: inset 0 0 0 1px rgba(255, 107, 82, 0.9), 0 0 22px rgba(255, 107, 82, 0.3);
+  }
+  100% {
+    box-shadow: inset 0 0 0 1px rgba(255, 107, 82, 0.22), 0 0 0 rgba(255, 107, 82, 0);
+  }
+}
+
 .entry-notice {
+  margin: 6px 0;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 11.8px;
   color: var(--ink-faint);
+  padding-left: 2px;
 }
 
 .entry-failed {
+  margin: 12px 0;
+  padding: 13px 15px;
+  border-radius: 9px;
   border: 1px solid var(--bad);
-  background: #2a1211;
-  border-radius: 8px;
-  padding: 10px 14px;
-  white-space: pre-wrap;
+  background: var(--bad-wash);
+  color: var(--ink);
   font-size: 13.5px;
 }
 
-/* The traveller facing report, the last thing on screen. */
+/* ------------------------------------------------- the report, the moment */
+
+/*
+ * The end of the run. It gets the widest frame, the gold border and the serif,
+ * because this is what the traveller would actually receive.
+ */
 .entry-report {
-  border: 1px solid var(--ok);
-  background: #0f1a12;
-  border-radius: 10px;
-  padding: 14px 16px;
-  margin-top: 18px;
+  margin: 20px 0 12px;
+  padding: 20px 22px;
+  border-radius: 11px;
+  border: 1px solid var(--gold-dim);
+  background: linear-gradient(180deg, rgba(227, 188, 99, 0.1), rgba(227, 188, 99, 0.03));
+  animation: report-land 520ms var(--ease);
+}
+
+@keyframes report-land {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .entry-report h3 {
-  margin: 0 0 8px;
-  font-size: 12px;
+  font-size: 17px;
+  color: var(--gold);
+  margin-bottom: 3px;
+}
+
+.entry-report .report-eyebrow {
+  font-family: var(--mono);
+  font-size: 10px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--ok);
+  color: var(--gold-dim);
+  margin-bottom: 10px;
 }
 
 .entry-report pre {
-  margin: 0;
-  font-family: var(--mono);
-  font-size: 12.5px;
-  line-height: 1.6;
+  margin: 12px 0 0;
   white-space: pre-wrap;
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.62;
   color: var(--ink);
 }
 
+/* ------------------------------------------------------------ the summary */
+
 .entry-summary {
+  margin: 14px 0;
+  padding: 13px 15px;
+  border-radius: 9px;
+  border: 1px solid var(--edge);
+  background: var(--bg-sunk);
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 20px;
-  padding: 12px 14px;
-  border: 1px solid var(--panel-edge);
-  border-radius: 10px;
+  gap: 8px 22px;
+  align-items: center;
   font-family: var(--mono);
-  font-size: 12px;
-  color: var(--ink-soft);
+  font-size: 11.5px;
+  color: var(--ink-faint);
 }
 
 .entry-summary b {
   color: var(--ink);
+  font-weight: 600;
+}
+
+.entry-summary .held,
+.entry-summary .broken {
+  margin-left: auto;
+  padding: 4px 10px;
+  border-radius: 5px;
+  letter-spacing: 0.11em;
+  font-size: 10.5px;
 }
 
 .entry-summary .held {
-  color: var(--ok);
+  color: #08150c;
+  background: var(--ok);
+  font-weight: 700;
 }
 
 .entry-summary .broken {
-  color: var(--bad);
+  color: #1a0603;
+  background: var(--bad);
+  font-weight: 700;
 }
 
-/* A true budget next to a false summary is the worst outcome to hide. */
+/*
+ * THE DISCREPANCY WARNING.
+ *
+ * The budget holding is not the same as the report being true. An agent can
+ * claim a booking it never made. This must never be softened, never collapsed
+ * and never quiet, so it is the loudest thing the page can draw.
+ */
 .entry-discrepancy {
-  border: 1px solid var(--bad);
-  background: #2a1211;
+  margin: 12px 0 18px;
+  padding: 16px 18px;
   border-radius: 10px;
-  padding: 12px 16px;
-  margin-top: 12px;
+  border: 2px solid var(--bad);
+  background: rgba(255, 107, 82, 0.14);
+  box-shadow: 0 0 26px rgba(255, 107, 82, 0.22);
+  animation: rise-in 300ms var(--ease), discrepancy-alarm 1.6s var(--ease);
+}
+
+@keyframes discrepancy-alarm {
+  0%,
+  100% {
+    box-shadow: 0 0 26px rgba(255, 107, 82, 0.22);
+  }
+  25%,
+  75% {
+    box-shadow: 0 0 40px rgba(255, 107, 82, 0.55);
+  }
 }
 
 .entry-discrepancy h3 {
-  margin: 0 0 6px;
-  font-size: 12px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
+  font-size: 16px;
   color: var(--bad);
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 9px;
+}
+
+.entry-discrepancy h3::before {
+  content: "!";
+  font-family: var(--mono);
+  font-size: 12px;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  border: 2px solid var(--bad);
+  display: grid;
+  place-items: center;
+  flex: none;
 }
 
 .entry-discrepancy ul {
   margin: 0;
-  padding-left: 18px;
+  padding-left: 19px;
+  color: var(--ink);
   font-size: 13.5px;
+}
+
+.entry-discrepancy li {
+  margin: 5px 0;
+}
+
+/* ========================================================= responsiveness */
+
+/*
+ * Tuned for a desktop screen recording first. Narrower widths stack rather than
+ * shrink, so nothing breaks, but the recording layout is never compromised for
+ * a phone.
+ */
+@media (max-width: 1180px) {
+  .studio-grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto minmax(320px, 1fr);
+    overflow-y: auto;
+  }
+
+  .panel-itinerary,
+  .panel-budget,
+  .panel-trace {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .panel-itinerary .panel-body {
+    max-height: 46vh;
+  }
+}
+
+@media (max-width: 860px) {
+  .plan-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .plan-inner {
+    padding: 30px 18px 54px;
+  }
+
+  .wordmark-lg {
+    font-size: 27px;
+  }
+
+  .studio-bar,
+  .scenario-bar,
+  .studio-grid {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .alloc-table {
+    font-size: 11.5px;
+  }
+}
+
+/* Motion is meaning here, but never at the cost of someone who cannot take it. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .page,
+  .page.is-active {
+    transform: none;
+  }
 }

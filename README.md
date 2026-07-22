@@ -40,6 +40,7 @@ npm run agent-demo -- <scenario-id>  # let the agent loose on one
 npm run verify-scenario -- <id>      # check a scenario's arithmetic, no AI
 npm run verify-trips                 # check trip building at 1 to 4 days, no AI
 npm run demo                         # the browser UI on http://localhost:5173
+npm run ui-harness                   # the same UI, driven with no model at all
 npm run typecheck                    # tsc --noEmit
 ```
 
@@ -172,12 +173,78 @@ step 8) is where the reject-and-adapt path is demonstrated deterministically.
 npm run demo                         # http://localhost:5173
 ```
 
-A thin page for watching one run. It opens with the setup step (days and budget),
-then shows the constructed trip and its budget before any scenario runs. Below
-that: the itinerary by time slot, the per category budget bars, and the reasoning
-trace streaming in live. A row of buttons fires any scenario that applies to the
-trip, and a reset button puts the trip back to how **you** configured it, so a
-scenario can be demoed over and over without restarting.
+**Two pages, one document.**
+
+**Plan** is the calm page. Days, budget, the 4 day cap explained, the feasibility
+answer, and then the constructed trip: the day by day plan, the per category
+allocation table, and the split rule in plain English. Nothing moves here.
+
+**Studio** is the page that gets screen recorded. The itinerary by day and slot,
+the per category budget bars, and the reasoning trace. A row of buttons fires any
+scenario that applies to the trip, and a reset button puts the trip back to how
+**you** configured it, so a scenario can be demoed over and over.
+
+Moving between them is a transition, not a navigation: both pages are mounted the
+whole time, Plan lifts away as Studio rises, and going back reverses it.
+
+### The visual direction
+
+Obsidian and gold. A deep green black ground, warm rather than the usual blue
+black dashboard, with antique gold for structure and parchment for text. A serif
+carries the display headings and, more importantly, the agent's own reasoning. A
+mono carries every number and every tool call, so money always reads as data. The
+three budget categories borrow from Jaipur itself: a faded indigo for transport, a
+terracotta for stay, a pistachio for activity, and a vermilion for danger.
+
+It is tuned for a compressed screen recording, so nothing depends on subtle tone.
+Body text sits above 8:1 against its panel, the gold above 9:1, the danger
+vermilion above 6:1, and there is no thin text over a busy background anywhere.
+
+### What moves, and why
+
+Motion is reserved for things that changed, because the trace is the star and
+decoration must not compete with it.
+
+- **Budget bars slide** when the agent rebooks or reallocates. The bars are built
+  once and updated in place rather than redrawn, which is the only reason the
+  transition can run at all.
+- **A category going negative** turns the bar vermilion, raises an `OVER` badge
+  and shakes once. Once only, so the alarm never becomes wallpaper.
+- **A rebooked slot** sweeps gold and settles. **A day slot going empty** turns
+  red and keeps a slow pulse, because a hole in the trip should stay loud.
+- **Turns group the trace.** A turn opens in a thinking state with a pulsing
+  indicator, and the first thing that arrives for it resolves that state. There
+  is no spinner: while the agent is thinking, the waiting is the content.
+- **Reasoning, tool calls, ACCEPTED and REJECTED** are four visually distinct
+  things. A refusal gets a vermilion frame, a filled `REJECTED` pill and a flash
+  as it lands, so it can never be mistaken for a success.
+- **The report card** arrives as its own moment in gold, and the **discrepancy
+  warning** (the agent's report not matching the trip it handed back) is the
+  loudest thing the page can draw. Neither is softened.
+
+Timing is untouched: the server's per event pacing is what it always was.
+
+### Driving the UI with no model
+
+```bash
+npm run ui-harness                   # http://localhost:5174
+```
+
+`scripts/ui-harness.ts` serves the same page with no model, no network and no API
+key, so the UI can be built and checked while the provider quota is exhausted. It
+speaks the same event names in the same order at the same pacing, and it reports
+itself as `offline stub / no model called` in the provider chip so a screenshot
+taken against it is self labelling.
+
+Every tool call it makes goes through the real prompt 2 tools, so every ACCEPTED,
+every REJECTED, every shortfall and every resulting trip view is genuinely
+computed. The disruptions are the real engine and the trip comes from the real
+`Session`. **Only the prose between the calls is canned narration, and it is not
+model output.** Add `&discrepancy=1` to `/api/run` to exercise the discrepancy
+warning without waiting for an agent to actually misreport.
+
+The harness never touches `src/server/server.ts`, so the production server and
+the SSE event contract are exactly as they were.
 
 **The key never reaches the browser.** The agent runs in the server process.
 `src/agent/config.ts` reads the key from the environment there, and it is never
@@ -240,8 +307,8 @@ src/
     session.ts        the one trip the demo server looks after, and its reset
     views.ts          turns World and TripState into the JSON the page draws
 web/
-  index.html          the three panels and the scenario buttons
-  styles.css          styling, tuned for legibility in a screen recording
+  index.html          two pages in one document: Plan, and the Studio
+  styles.css          obsidian and gold, tuned for a compressed screen recording
   app.js              subscribes to the stream and redraws, no dependencies
 scripts/
   show-world.ts       npm run world
@@ -250,6 +317,7 @@ scripts/
   verify-scenario.ts  npm run verify-scenario
   verify-trips.ts     npm run verify-trips
   serve.ts            npm run demo
+  ui-harness.ts       npm run ui-harness, drives the UI with no model
 ```
 
 ## How the agent works

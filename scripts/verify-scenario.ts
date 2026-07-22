@@ -16,6 +16,7 @@
  */
 
 import { CATEGORIES, type TripState, type World } from "../src/data/types.js";
+import { resolveDisruption } from "../src/events/applicability.js";
 import { applyDisruption, getDisruption, loadDisruptions } from "../src/events/engine.js";
 import { getScenario, loadScenarios } from "../src/events/scenarios.js";
 import { reallocateBudget, rebookSlot } from "../src/tools/index.js";
@@ -48,7 +49,16 @@ function main(): void {
   console.log(`  before        ${money(state)}`);
 
   for (const id of scenario.disruptionIds) {
-    const outcome = applyDisruption(world, state, getDisruption(disruptions, id));
+    // Resolve before applying. A disruption written against a slot and category
+    // rather than an option id has no optionId until it is matched to what this
+    // trip actually booked, and the engine only ever handles a concrete one.
+    const resolution = resolveDisruption(world, state, getDisruption(disruptions, id), world);
+    if (!resolution.ok) {
+      console.log(`  ${id.padEnd(14)}does not apply to this trip: ${resolution.reason}`);
+      continue;
+    }
+
+    const outcome = applyDisruption(world, state, resolution.disruption);
     world = outcome.world;
     state = outcome.state;
     console.log(`  after ${id.padEnd(8)}${money(state)}`);

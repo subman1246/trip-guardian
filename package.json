@@ -14,6 +14,7 @@
     "verify-scenario": "tsx scripts/verify-scenario.ts",
     "verify-trips": "tsx scripts/verify-trips.ts",
     "demo": "tsx scripts/serve.ts",
+    "ui-harness": "tsx scripts/ui-harness.ts",
     "typecheck": "tsc --noEmit",
     "build": "tsc --noEmit"
   },

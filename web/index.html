@@ -5,88 +5,235 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Trip Guardian</title>
     <link rel="stylesheet" href="/styles.css" />
+    <!-- The mark, inline. No external asset, nothing to fetch, nothing to leak. -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 26'%3E%3Cpath d='M4 24V13.2C4 8 7.2 3.4 12 1.8c4.8 1.6 8 6.2 8 11.4V24Z' fill='none' stroke='%23E3BC63' stroke-width='2'/%3E%3Ccircle cx='12' cy='12.4' r='2.1' fill='%23E3BC63'/%3E%3C/svg%3E"
+    />
   </head>
   <body>
-    <header class="masthead">
-      <div class="masthead-left">
-        <h1>Trip Guardian</h1>
-        <p class="tagline">
-          An autonomous agent defending one itinerary and one fixed budget, live.
-        </p>
-      </div>
-      <div class="masthead-right">
-        <span class="chip" id="provider-chip">connecting</span>
-        <span class="chip chip-quiet">key stays on the server</span>
-      </div>
-    </header>
+    <!--
+      Two pages, one document. Both are in the DOM the whole time so moving
+      between them is a transition rather than a reload, and so the Studio never
+      has to re-fetch the trip it is already showing.
+    -->
+    <div class="stage" id="stage">
+      <!-- ============================================================ PLAN -->
+      <section class="page page-plan is-active" id="page-plan" aria-label="Plan your trip">
+        <div class="plan-inner">
+          <header class="plan-masthead">
+            <div class="wordmark wordmark-lg">
+              <svg class="mark" viewBox="0 0 24 26" aria-hidden="true">
+                <path
+                  d="M4 24V13.2C4 8 7.2 3.4 12 1.8c4.8 1.6 8 6.2 8 11.4V24Z"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                />
+                <circle cx="12" cy="12.4" r="2.1" fill="currentColor" />
+              </svg>
+              <span class="wordmark-text">Trip<span class="wordmark-thin">Guardian</span></span>
+            </div>
+            <p class="plan-tagline">
+              An autonomous agent that defends one itinerary and one fixed budget, live,
+              while the world does its worst.
+            </p>
+          </header>
 
-    <section class="setup" aria-labelledby="setup-heading">
-      <h2 id="setup-heading">Plan your trip</h2>
-      <form class="setup-form" id="setup-form">
-        <label class="field">
-          <span>Days</span>
-          <input id="setup-days" name="days" type="number" min="1" max="4" step="1" value="2"
-                 inputmode="numeric" required />
-        </label>
-        <label class="field">
-          <span>Total budget (INR)</span>
-          <!-- step is 1 because money is whole rupees. A coarser step would make
-               the browser reject round numbers like 15000 against a min of 1. -->
-          <input id="setup-budget" name="budget" type="number" min="1" step="1" value="15000"
-                 inputmode="numeric" required />
-        </label>
-        <button class="btn btn-build" id="setup-submit" type="submit">Build trip</button>
-        <p class="setup-hint">
-          Trips are capped at 4 days, because the Jaipur dataset is handmade and only
-          runs that far. Everything below is worked out from the catalogue before the
-          agent is involved at all.
-        </p>
-      </form>
+          <div class="plan-grid">
+            <!-- ------------------------------------------------ the setup -->
+            <section class="card card-setup" aria-labelledby="setup-heading">
+              <h2 class="card-title" id="setup-heading">
+                <span class="card-index">01</span> How long, and how much?
+              </h2>
 
-      <p class="setup-error" id="setup-error" hidden></p>
-      <div class="setup-summary" id="setup-summary"></div>
-    </section>
+              <form class="setup-form" id="setup-form">
+                <label class="field" for="setup-days">
+                  <span class="field-label">Days in Jaipur</span>
+                  <input
+                    id="setup-days"
+                    name="days"
+                    type="number"
+                    min="1"
+                    max="4"
+                    step="1"
+                    value="2"
+                    inputmode="numeric"
+                    required
+                  />
+                </label>
 
-    <nav class="controls" aria-label="Scenarios">
-      <span class="controls-label">Fire a disruption</span>
-      <div class="scenario-buttons" id="scenario-buttons"></div>
-      <button class="btn btn-reset" id="reset-button" type="button">Reset trip</button>
-    </nav>
+                <label class="field field-wide" for="setup-budget">
+                  <span class="field-label">Total budget</span>
+                  <div class="field-money">
+                    <span class="field-prefix">Rs</span>
+                    <!-- step is 1 because money is whole rupees. A coarser step
+                         would make the browser reject round numbers like 15000
+                         against a min of 1. -->
+                    <input
+                      id="setup-budget"
+                      name="budget"
+                      type="number"
+                      min="1"
+                      step="1"
+                      value="15000"
+                      inputmode="numeric"
+                      required
+                    />
+                  </div>
+                </label>
 
-    <p class="scenario-note" id="scenario-note"></p>
+                <button class="btn btn-primary" id="setup-submit" type="submit">
+                  Build the trip
+                </button>
+              </form>
 
-    <main class="layout">
-      <section class="panel" aria-labelledby="itinerary-heading">
-        <h2 id="itinerary-heading">Itinerary</h2>
-        <div id="itinerary"></div>
-        <div class="panel-foot">
-          <span>Itinerary total</span>
-          <strong id="itinerary-total">Rs 0</strong>
+              <p class="setup-hint">
+                Trips run from <strong>1 to 4 days</strong>. The cap is real: the Jaipur
+                catalogue is handmade and only carries curated options out to Day 4, so
+                anything longer would be filler. Everything below is worked out from that
+                catalogue before the agent is involved at all.
+              </p>
+
+              <!-- The feasibility answer. Calm and helpful, never a red dump. -->
+              <div class="feasibility" id="setup-error" hidden>
+                <div class="feasibility-mark" aria-hidden="true">!</div>
+                <div class="feasibility-body">
+                  <h3 class="feasibility-title">That budget will not stretch</h3>
+                  <p class="feasibility-text" id="setup-error-text"></p>
+                  <dl class="feasibility-figures" id="setup-error-figures"></dl>
+                </div>
+              </div>
+            </section>
+
+            <!-- ------------------------------------------- the built trip -->
+            <section class="card card-trip" aria-labelledby="trip-heading">
+              <h2 class="card-title" id="trip-heading">
+                <span class="card-index">02</span> Your trip, as booked
+              </h2>
+
+              <div class="trip-figures" id="plan-figures"></div>
+              <div class="plan-days" id="plan-days"></div>
+            </section>
+
+            <!-- ------------------------------------------- the money split -->
+            <section class="card card-split" aria-labelledby="split-heading">
+              <h2 class="card-title" id="split-heading">
+                <span class="card-index">03</span> Where the money went
+              </h2>
+
+              <div class="alloc-table" id="plan-alloc"></div>
+
+              <h3 class="split-subhead">How the split was worked out</h3>
+              <ol class="split-rule" id="plan-rule"></ol>
+            </section>
+          </div>
+
+          <div class="plan-cta">
+            <button class="btn btn-enter" id="enter-studio" type="button">
+              <span>Enter the Studio</span>
+              <svg viewBox="0 0 24 24" class="arrow" aria-hidden="true">
+                <path
+                  d="M4 12h15M13 6l6 6-6 6"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </button>
+            <p class="plan-cta-note">
+              Break the trip and watch the agent defend it, turn by turn.
+            </p>
+          </div>
         </div>
       </section>
 
-      <section class="panel" aria-labelledby="budget-heading">
-        <h2 id="budget-heading">Budget</h2>
-        <div id="budget"></div>
-        <div class="panel-foot">
-          <span>Total spent</span>
-          <strong id="budget-total">Rs 0</strong>
-        </div>
-      </section>
+      <!-- ========================================================== STUDIO -->
+      <section class="page page-studio" id="page-studio" aria-label="The Studio" aria-hidden="true">
+        <header class="studio-bar">
+          <button class="btn btn-back" id="back-to-plan" type="button">
+            <svg viewBox="0 0 24 24" class="arrow arrow-back" aria-hidden="true">
+              <path
+                d="M20 12H5M11 6l-6 6 6 6"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+            <span>Plan</span>
+          </button>
 
-      <section class="panel panel-trace" aria-labelledby="trace-heading">
-        <h2 id="trace-heading">
-          Reasoning trace
-          <span class="trace-status" id="trace-status">idle</span>
-        </h2>
-        <div id="trace" class="trace" aria-live="polite">
-          <p class="trace-empty">
-            Pick a scenario above. The disruption lands, the agent reasons, the tools
-            answer, and both panels on the left move as it works.
-          </p>
-        </div>
+          <div class="wordmark wordmark-sm">
+            <svg class="mark" viewBox="0 0 24 26" aria-hidden="true">
+              <path
+                d="M4 24V13.2C4 8 7.2 3.4 12 1.8c4.8 1.6 8 6.2 8 11.4V24Z"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+              />
+              <circle cx="12" cy="12.4" r="2.1" fill="currentColor" />
+            </svg>
+            <span class="wordmark-text">Trip<span class="wordmark-thin">Guardian</span></span>
+          </div>
+
+          <div class="studio-meta">
+            <span class="chip" id="trip-chip">trip</span>
+            <span class="chip chip-model" id="provider-chip">connecting</span>
+            <span class="chip chip-quiet" title="The agent runs in the server process. The key is read there and never enters a response, a stream event or a served file.">
+              <svg viewBox="0 0 24 24" class="lock" aria-hidden="true">
+                <path d="M6 11V8a6 6 0 0 1 12 0v3" fill="none" stroke="currentColor" stroke-width="2" />
+                <rect x="4" y="11" width="16" height="10" rx="2" fill="currentColor" />
+              </svg>
+              key stays on the server
+            </span>
+          </div>
+        </header>
+
+        <nav class="scenario-bar" aria-label="Scenarios">
+          <div class="scenario-bar-head">
+            <span class="eyebrow">Fire a disruption</span>
+            <button class="btn btn-reset" id="reset-button" type="button">Reset trip</button>
+          </div>
+          <div class="scenario-buttons" id="scenario-buttons"></div>
+          <p class="scenario-note" id="scenario-note"></p>
+        </nav>
+
+        <main class="studio-grid">
+          <section class="panel panel-itinerary" aria-labelledby="itinerary-heading">
+            <div class="panel-head">
+              <h2 id="itinerary-heading">Itinerary</h2>
+              <span class="panel-figure" id="itinerary-total">Rs 0</span>
+            </div>
+            <div class="panel-body" id="itinerary"></div>
+          </section>
+
+          <section class="panel panel-budget" aria-labelledby="budget-heading">
+            <div class="panel-head">
+              <h2 id="budget-heading">Budget</h2>
+              <span class="panel-figure" id="budget-total">Rs 0</span>
+            </div>
+            <div class="panel-body" id="budget"></div>
+          </section>
+
+          <section class="panel panel-trace" aria-labelledby="trace-heading">
+            <div class="panel-head">
+              <h2 id="trace-heading">Reasoning trace</h2>
+              <span class="trace-status" id="trace-status">idle</span>
+            </div>
+            <div class="trace" id="trace" aria-live="polite">
+              <p class="trace-empty">
+                Pick a scenario above. The disruption lands, the agent reasons, the tools
+                answer, and both panels on the left move as it works.
+              </p>
+            </div>
+          </section>
+        </main>
       </section>
-    </main>
+    </div>
 
     <script src="/app.js"></script>
   </body>
