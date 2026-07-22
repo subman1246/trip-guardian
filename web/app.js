@@ -232,15 +232,20 @@ function traceSummary(data) {
   );
   box.append(el("span", broken ? "broken" : "held",
     broken ? `BUDGET BROKEN in ${data.trip.overspentCategories.join(", ")}` : "BUDGET HELD"));
+  addEntry(box);
 
-  // The budget holding is not the same as the trip being repaired. An agent can
-  // leave a slot empty and still report success, so say so rather than let the
-  // green line imply the job is done.
-  if (data.trip.emptySlots.length > 0) {
-    box.append(el("span", "broken", `LEFT EMPTY: ${data.trip.emptySlots.join(", ")}`));
+  // The budget holding is not the same as the report being true. An agent can
+  // claim a booking it never made, so never let the green line stand alone.
+  const unresolved = data.unresolved ?? [];
+  if (unresolved.length > 0) {
+    const warning = el("div", "entry entry-discrepancy");
+    warning.append(el("h3", null, "The report does not match the trip handed back"));
+    const list = el("ul");
+    for (const problem of unresolved) list.append(el("li", null, problem));
+    warning.append(list);
+    addEntry(warning);
   }
 
-  addEntry(box);
   renderTrip(data.trip);
 }
 

@@ -171,3 +171,30 @@ export const NUDGE_MESSAGE =
   "You have not called notify_user yet. If the trip is repaired and the budget is " +
   "sound, call notify_user now with your final report. If something is still broken, " +
   "keep working on it with the tools.";
+
+/**
+ * Sent when the report does not describe the trip that actually exists.
+ *
+ * This never tells the agent to book something. Leaving a slot empty is a valid
+ * outcome when nothing can fill it. What is not valid is a report that says a
+ * booking was made when no rebook_slot call was made, so the agent is given both
+ * honest ways out and asked to pick one.
+ */
+export function buildDiscrepancyMessage(problems: string[]): string {
+  return [
+    "Stop. Your report does not match the trip as it actually stands:",
+    ...problems.map((problem) => `  - ${problem}`),
+    "",
+    "You have two honest ways to resolve an empty slot, and you must take one of them:",
+    "  1. Book something there with rebook_slot. If every option is short of budget,",
+    "     spend less elsewhere first (rebook_slot down to a cheaper option), then",
+    "     reallocate_budget into the category, then rebook.",
+    "  2. Leave it empty, and say so plainly in your report: name the slot, say it is",
+    "     empty, and say why nothing worked.",
+    "",
+    "Never describe a booking you did not make. If a category is still over its",
+    "allocation, bring it back inside first by downgrading or reallocating.",
+    "",
+    "Then call notify_user again with a report that is true.",
+  ].join("\n");
+}

@@ -16,11 +16,12 @@
 
 import type { Content, Part } from "@google/genai";
 
-import type { BudgetState, TripState, World } from "../data/types.js";
+import { CATEGORIES, type BudgetState, type TimeSlot, type TripState, type World } from "../data/types.js";
 import type { DisruptionOutcome } from "../events/engine.js";
+import { formatINR } from "../world/money.js";
 import { executeToolCall, type ExecutionOutcome } from "./executor.js";
 import type { AgentModel, ModelToolCall } from "./model.js";
-import { NUDGE_MESSAGE, buildOpeningMessage } from "./prompts.js";
+import { NUDGE_MESSAGE, buildDiscrepancyMessage, buildOpeningMessage } from "./prompts.js";
 
 /** Stop after this many model turns, so a confused agent cannot run forever. */
 const DEFAULT_MAX_TURNS = 14;
@@ -46,8 +47,13 @@ export interface AgentTurn {
 }
 
 export type StopReason =
-  /** The agent called notify_user. The normal ending. */
+  /** The agent called notify_user and the report matched the trip. The normal ending. */
   | "reported"
+  /**
+   * The agent reported, was told twice that the report did not match the trip,
+   * and reported anyway. The run is over but the summary cannot be trusted.
+   */
+  | "reported_with_discrepancy"
   /** Hit the turn cap with the job unfinished. */
   | "max_turns"
   /** Stopped calling tools and would not report, even after being nudged. */
@@ -64,6 +70,12 @@ export interface AgentRun {
   /** Total tool calls, and how many the tools refused. */
   toolCallCount: number;
   rejectionCount: number;
+  /**
+   * Ways the final report disagrees with the final trip, in plain words. Empty on
+   * a clean run. Anything in here should be shown, loudly: the budget can hold and
+   * the report can still be false.
+   */
+  unresolved: string[];
 }
 
 /** How the loop reports progress. Every hook is optional. */
@@ -73,7 +85,8 @@ export interface AgentObserver {
   onReasoning?(index: number, text: string): void;
   onToolCall?(name: string, args: Record<string, unknown>): void;
   onToolResult?(call: RecordedCall): void;
-  onNudge?(index: number): void;
+  /** reason says what the agent is being sent back for, so a trace can be specific. */
+  onNudge?(index: number, reason?: string): void;
   onFinish?(run: AgentRun): void;
 }
 
@@ -101,12 +114,77 @@ export async function runAgent(options: RunAgentOptions): Promise<AgentRun> {
 
   observer?.onStart?.({ modelName: model.name, openingMessage, maxTurns });
 
+  // The slots the disruptions actually emptied. These are the ones the agent owes
+  // an answer for, either a booking or an admission. Slots that were never filled
+  // are not its problem.
+  const emptiedSlots = [
+    ...new Set(
+      outcomes
+        .map((outcome) => outcome.emptiedSlot)
+        .filter((slot): slot is TimeSlot => slot !== undefined),
+    ),
+  ];
+
   const turns: AgentTurn[] = [];
   let notification: string | null = null;
   let stopped: StopReason = "max_turns";
   let nudges = 0;
   let toolCallCount = 0;
   let rejectionCount = 0;
+
+  /**
+   * Where the report and the trip disagree. Empty means the agent can finish.
+   *
+   * An empty slot on its own is NOT a problem: sometimes nothing can fill one and
+   * saying so is the right answer. The problem is a report that does not admit it.
+   * An overspent category is a problem no wording can excuse.
+   */
+  const openProblems = (): string[] => {
+    const problems: string[] = [];
+    const filled = new Set(state.itinerary.map((item) => item.timeSlot));
+
+    for (const slot of emptiedSlots) {
+      if (filled.has(slot)) continue;
+      if (notification !== null && admitsEmptySlot(notification, slot)) continue;
+      problems.push(
+        `${slot} is still empty, and your report does not say so. Either book something there or say plainly that you are leaving it empty and why.`,
+      );
+    }
+
+    for (const category of CATEGORIES) {
+      const ledger = state.budget.byCategory[category];
+      if (ledger.remaining < 0) {
+        problems.push(
+          `${category} is still ${formatINR(-ledger.remaining)} over its allocation of ${formatINR(ledger.allocated)}.`,
+        );
+      }
+    }
+
+    return problems;
+  };
+
+  /**
+   * Called when the agent has reported. Returns true when the run may end.
+   * Otherwise it sends the agent back, reusing the same nudge budget as the
+   * silent case so a confused model still cannot loop forever.
+   */
+  const settleReport = (index: number): boolean => {
+    const problems = openProblems();
+    if (problems.length === 0) {
+      stopped = "reported";
+      return true;
+    }
+    if (nudges >= MAX_NUDGES) {
+      // Out of nudges and still wrong. End, but never as a clean success.
+      stopped = "reported_with_discrepancy";
+      return true;
+    }
+
+    nudges += 1;
+    observer?.onNudge?.(index, problems.join(" "));
+    contents.push({ role: "user", parts: [{ text: buildDiscrepancyMessage(problems) }] });
+    return false;
+  };
 
   for (let index = 1; index <= maxTurns; index += 1) {
     observer?.onTurnStart?.(index);
@@ -123,15 +201,15 @@ export async function runAgent(options: RunAgentOptions): Promise<AgentRun> {
     if (modelTurn.toolCalls.length === 0) {
       // No tools asked for. Either it is done, or it has drifted into chatting.
       if (notification !== null) {
-        stopped = "reported";
-        break;
+        if (settleReport(index)) break;
+        continue;
       }
       if (nudges >= MAX_NUDGES) {
         stopped = "gave_up";
         break;
       }
       nudges += 1;
-      observer?.onNudge?.(index);
+      observer?.onNudge?.(index, "no tool calls yet and no report");
       contents.push({ role: "user", parts: [{ text: NUDGE_MESSAGE }] });
       continue;
     }
@@ -169,11 +247,9 @@ export async function runAgent(options: RunAgentOptions): Promise<AgentRun> {
 
     contents.push({ role: "user", parts: responseParts });
 
-    // The report is the last thing the agent does, so stop as soon as it lands.
-    if (reported) {
-      stopped = "reported";
-      break;
-    }
+    // The report is normally the last thing the agent does, but only once it
+    // actually describes the trip it is handing back.
+    if (reported && settleReport(index)) break;
   }
 
   const run: AgentRun = {
@@ -185,10 +261,74 @@ export async function runAgent(options: RunAgentOptions): Promise<AgentRun> {
     stopped,
     toolCallCount,
     rejectionCount,
+    unresolved: openProblems(),
   };
 
   observer?.onFinish?.(run);
   return run;
+}
+
+/**
+ * Words that mean a slot was left unfilled. If one of these sits near the slot's
+ * name in the report, the agent has owned the gap.
+ */
+const ADMISSION = new RegExp(
+  [
+    "empt",
+    "unfilled",
+    "not booked",
+    "nothing booked",
+    "no booking",
+    "without a booking",
+    "unbooked",
+    "no option",
+    "no alternative",
+    "no replacement",
+    "left open",
+    "left free",
+    "left it open",
+    "left unbooked",
+    "gap",
+    "could not",
+    "cannot",
+    "can not",
+    "unable",
+    "nothing (?:is |was |we |i )?(?:available|left|open)",
+    "remains? free",
+    "stays? free",
+  ].join("|"),
+  "i",
+);
+
+/**
+ * Does the report admit that this slot is empty?
+ *
+ * Deliberately a heuristic, and deliberately a narrow one. It looks for the slot
+ * name in the report and then for an admission near it. Both ways of being wrong
+ * are safe: a missed admission costs one nudge asking the agent to be explicit,
+ * and a false admission only means the discrepancy warning does not fire on a
+ * report that was probably fine anyway. Nothing here can change the itinerary or
+ * the budget, so it cannot let a bad trip through as a good one.
+ */
+function admitsEmptySlot(notification: string, slot: TimeSlot): boolean {
+  // The report is wrapped to a fixed width, so a slot name can straddle a line
+  // break. Flatten the whitespace before looking for it.
+  const flat = notification.replace(/\s+/g, " ");
+  const needle = slot.toLowerCase();
+  const haystack = flat.toLowerCase();
+
+  let from = 0;
+  for (;;) {
+    const at = haystack.indexOf(needle, from);
+    if (at === -1) return false;
+
+    // Read around the mention: enough before to catch "nothing could fill Day 2
+    // Morning", enough after to catch "Day 2 Morning is left empty".
+    const window = flat.slice(Math.max(0, at - 120), at + needle.length + 220);
+    if (ADMISSION.test(window)) return true;
+
+    from = at + needle.length;
+  }
 }
 
 /** Pair a tool result back to the call that asked for it. */

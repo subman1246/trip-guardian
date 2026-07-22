@@ -21,7 +21,14 @@ const searchAlternativesDeclaration: FunctionDeclaration = {
     "excluding whatever is already booked and anything a disruption has closed. " +
     "Always call this before rebooking, so you choose from what actually exists. " +
     "priceDelta is what the swap costs on top of the current booking, and it is the " +
-    "number that has to fit the category, not the sticker price.",
+    "number that has to fit the category, not the sticker price. On a slot a disruption " +
+    "emptied there is nothing to refund, so priceDelta is the full price. " +
+    "AN OPTION YOU CANNOT AFFORD IS STILL AN OPTION. This tool always returns every " +
+    "option that exists and is open, each marked with fitsRemainingBudget and, when it " +
+    "does not fit, shortfallINR, the exact rupees you are short. A shortfall is a task, " +
+    "not a dead end: spend less somewhere else (rebook_slot down to a cheaper option), " +
+    "then reallocate_budget into this category, then rebook here. Only an empty " +
+    "alternatives list means a slot truly cannot be filled.",
   parameters: {
     type: Type.OBJECT,
     properties: {
@@ -44,8 +51,9 @@ const searchAlternativesDeclaration: FunctionDeclaration = {
       mustFitRemainingBudget: {
         type: Type.BOOLEAN,
         description:
-          "If true, only return options the category can already afford. Leave false " +
-          "to also see options you would need to reallocate budget for.",
+          "If true, options the category can already afford are sorted to the top. This " +
+          "only changes the order. Nothing is ever removed for being unaffordable, so " +
+          "setting this can never hide the only option a slot has.",
       },
       sortBy: {
         type: Type.STRING,

@@ -54,11 +54,11 @@ export function formatAlternatives(details: SearchDetails): string {
   lines.push(rule());
 
   if (details.alternatives.length === 0) {
-    lines.push("  No alternatives passed the filters.");
+    lines.push("  Nothing exists here that is still open.");
   } else {
-    lines.push("  ID    OPTION                              PRICE      DELTA   FITS");
+    lines.push("  ID    OPTION                              PRICE      DELTA      SHORT");
     for (const alternative of details.alternatives) {
-      const { option, priceDelta, fitsRemainingBudget } = alternative;
+      const { option, priceDelta, fitsRemainingBudget, shortfall } = alternative;
       // Show the delta with an explicit sign, it is the number that matters.
       const delta = priceDelta === 0 ? "same" : (priceDelta > 0 ? "+" : "-") + formatINR(Math.abs(priceDelta)).replace("Rs ", "");
       lines.push(
@@ -67,17 +67,27 @@ export function formatAlternatives(details: SearchDetails): string {
           clip(option.name, 34).padEnd(36) +
           formatINR(option.price).padStart(9) +
           delta.padStart(9) +
-          (fitsRemainingBudget ? "    yes" : "     no"),
+          (fitsRemainingBudget ? "       fits" : formatINR(shortfall).padStart(11)),
       );
     }
   }
 
   lines.push(rule());
-  const { alreadyBooked, unavailable, overMaxPrice, overBudget } = details.excluded;
+  if (details.shortOfBudget > 0) {
+    lines.push(
+      ...wrap(
+        `${details.shortOfBudget} of these need more budget than the category has left. They are ` +
+          "listed because they are real and bookable once that money is freed, not hidden.",
+        WIDTH,
+        "  ",
+      ),
+    );
+  }
+  const { alreadyBooked, unavailable, overMaxPrice } = details.excluded;
   lines.push(
     ...wrap(
-      `Filtered out: ${alreadyBooked} already booked, ${unavailable} closed, ` +
-        `${overMaxPrice} over max price, ${overBudget} over budget.`,
+      `Not listed: ${alreadyBooked} already booked, ${unavailable} closed, ` +
+        `${overMaxPrice} over the max price asked for.`,
       WIDTH,
       "  ",
     ),

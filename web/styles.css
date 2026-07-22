@@ -632,3 +632,26 @@ body {
 .entry-summary .broken {
   color: var(--bad);
 }
+
+/* A true budget next to a false summary is the worst outcome to hide. */
+.entry-discrepancy {
+  border: 1px solid var(--bad);
+  background: #2a1211;
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-top: 12px;
+}
+
+.entry-discrepancy h3 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--bad);
+}
+
+.entry-discrepancy ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13.5px;
+}

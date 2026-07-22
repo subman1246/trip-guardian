@@ -49,8 +49,9 @@ export function createTracePrinter(): AgentObserver {
       console.log("");
     },
 
-    onNudge(index) {
-      console.log(`(no tool calls on turn ${index}, reminding the agent to finish)`);
+    onNudge(index, reason) {
+      const why = reason === undefined ? "reminding the agent to finish" : reason;
+      console.log(`SENT BACK on turn ${index}: ${why}`);
       console.log("");
     },
 
@@ -137,6 +138,8 @@ export function formatRunSummary(run: AgentRun): string {
 
   const ending: Record<AgentRun["stopped"], string> = {
     reported: "The agent finished and reported to the traveller.",
+    reported_with_discrepancy:
+      "The agent reported, was sent back twice because the report did not match the trip, and reported anyway.",
     max_turns: "The agent hit the turn cap before reporting. The trip may be unrepaired.",
     gave_up: "The agent stopped calling tools without reporting.",
   };
@@ -172,6 +175,18 @@ export function formatRunSummary(run: AgentRun): string {
     lines.push("  BUDGET HELD. Every category is within its allocation.");
   } else {
     lines.push(`  BUDGET BROKEN in: ${overspent.join(", ")}`);
+  }
+
+  // The budget holding is not the same as the report being true. Say so loudly,
+  // because a green budget line next to a false summary is the worst of both.
+  if (run.unresolved.length > 0) {
+    lines.push("");
+    lines.push(rule("!"));
+    lines.push("  THE REPORT DOES NOT MATCH THE TRIP HANDED BACK");
+    for (const problem of run.unresolved) {
+      for (const line of bulletLines(problem, "- ", "      ")) lines.push(`  ${line}`);
+    }
+    lines.push(rule("!"));
   }
 
   lines.push(rule("="));

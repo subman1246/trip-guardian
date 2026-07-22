@@ -104,7 +104,7 @@ function runSearch(world: World, state: TripState, args: Record<string, unknown>
   const result = searchAlternatives(world, state, query);
   if (!result.ok) return fromFailure(result.state, result.reason, result.summary);
 
-  const { current, alternatives, excluded } = result.details;
+  const { current, alternatives, excluded, shortOfBudget } = result.details;
 
   return {
     state: result.state,
@@ -125,8 +125,21 @@ function runSearch(world: World, state: TripState, args: Record<string, unknown>
         description: alternative.option.description,
         priceDelta: alternative.priceDelta,
         fitsRemainingBudget: alternative.fitsRemainingBudget,
+        shortfallINR: alternative.shortfall,
       })),
+      // Everything listed above exists and is open. This counts how many of them
+      // need money moved before they can be booked, which is a task, not a wall.
+      needMoreBudget: shortOfBudget,
       filteredOut: excluded,
+      ...(shortOfBudget > 0 && shortOfBudget === alternatives.length
+        ? {
+            hint:
+              "Every option for this slot exists but is short of budget. Spend less somewhere " +
+              "else first (rebook_slot down to a cheaper option), which frees allocation, then " +
+              "reallocate_budget into this category, then rebook here. Leaving the slot empty " +
+              "is a last resort, not the answer to a shortfall.",
+          }
+        : {}),
     },
   };
 }

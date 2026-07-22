@@ -202,8 +202,10 @@ async function streamRun(scenarioId: string, response: ServerResponse): Promise<
           changedState: call.outcome.changedState,
           trip: toTripView(world, call.outcome.state),
         }),
-      onNudge: (index) =>
-        emit("notice", { text: `No tool calls on turn ${index}, reminding the agent to finish.` }),
+      onNudge: (index, reason) =>
+        emit("notice", {
+          text: `Sent back on turn ${index}: ${reason ?? "reminding the agent to finish"}`,
+        }),
       onFinish: (run) => {
         if (run.notification !== null) emit("notification", { message: run.notification });
         emit("done", {
@@ -211,6 +213,7 @@ async function streamRun(scenarioId: string, response: ServerResponse): Promise<
           turns: run.turns.length,
           toolCalls: run.toolCallCount,
           rejections: run.rejectionCount,
+          unresolved: run.unresolved,
           trip: toTripView(world, run.finalState),
         });
       },
