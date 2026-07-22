@@ -1306,6 +1306,112 @@ h3 {
   max-width: 56ch;
 }
 
+/* ------------------------------------------------------------- the chat bar */
+
+/*
+ * Sits below the trace, inside the same panel, flex:none so the trace keeps
+ * the scrolling space. Chat messages APPEND into the same trace log a
+ * scenario writes into, so the disruption and the conversation read as one
+ * continuous story rather than two disconnected views.
+ */
+.chat-bar {
+  flex: none;
+  display: flex;
+  gap: 8px;
+  padding: 12px 18px 14px;
+  border-top: 1px solid var(--edge-soft);
+}
+
+.chat-input {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--sans);
+  font-size: 13.5px;
+  padding: 10px 13px;
+  border-radius: 9px;
+  border: 1px solid var(--edge);
+  background: var(--bg-sunk);
+  color: var(--ink);
+  transition: border-color 150ms var(--ease), box-shadow 150ms var(--ease);
+}
+
+.chat-input::placeholder {
+  color: var(--ink-faint);
+}
+
+.chat-input:focus {
+  outline: none;
+  border-color: var(--gold-dim);
+  box-shadow: 0 0 0 3px var(--gold-wash);
+}
+
+.chat-input:disabled {
+  opacity: 0.5;
+}
+
+.chat-send {
+  flex: none;
+  border-color: var(--gold-dim);
+  background: linear-gradient(180deg, rgba(227, 188, 99, 0.16), rgba(227, 188, 99, 0.06));
+  color: var(--gold);
+  font-weight: 600;
+}
+
+.chat-send:hover:not(:disabled) {
+  background: linear-gradient(180deg, rgba(227, 188, 99, 0.24), rgba(227, 188, 99, 0.1));
+  border-color: var(--gold);
+}
+
+/* The traveller's own message. Distinct from the agent's reasoning on purpose,
+   so a conversation reads as two voices, not one continuous monologue. */
+.entry-chat-user {
+  margin: 12px 0 6px;
+  padding: 10px 14px;
+  border-radius: 9px;
+  border: 1px solid var(--edge);
+  background: var(--bg-sunk);
+  color: var(--ink);
+  font-size: 13.8px;
+  line-height: 1.5;
+  max-width: 70ch;
+  margin-left: auto;
+}
+
+/* The agent's plain spoken reply when it did not call notify_user, the normal
+   shape of a quick chat answer rather than a formal report. */
+.entry-chat-reply {
+  margin: 6px 0 14px;
+  padding: 12px 15px;
+  border-radius: 9px;
+  border: 1px solid var(--gold-dim);
+  background: var(--gold-wash);
+  max-width: 78ch;
+}
+
+.chat-who {
+  display: block;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gold-dim);
+  margin-bottom: 4px;
+}
+
+.entry-chat-user .chat-who {
+  text-align: right;
+  color: var(--ink-faint);
+}
+
+.entry-chat-reply p,
+.entry-chat-reply div {
+  font-family: var(--serif);
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--ink);
+  margin: 0;
+}
+
 .entry {
   animation: rise-in 300ms var(--ease);
 }

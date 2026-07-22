@@ -26,6 +26,8 @@ import { extname, join, normalize, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { activeModelName, hasApiKey, hasGroqApiKey, providerName } from "../agent/config.js";
+import { CHAT_FUNCTION_DECLARATIONS } from "../agent/chatDeclarations.js";
+import { runChatTurn } from "../agent/chatLoop.js";
 import { explainApiError } from "../agent/errors.js";
 import { runAgent, type AgentObserver } from "../agent/loop.js";
 import { createModel } from "../agent/providers.js";
@@ -123,6 +125,11 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
 
   if (path === "/api/run") {
     await streamRun(url.searchParams.get("scenario") ?? "", response);
+    return;
+  }
+
+  if (path === "/api/chat") {
+    await streamChat(url.searchParams.get("message") ?? "", response);
     return;
   }
 
@@ -330,6 +337,130 @@ async function streamRun(scenarioId: string, response: ServerResponse): Promise<
     });
 
     session.state = run.finalState;
+  } catch (error: unknown) {
+    const explained = explainApiError(error, activeModelName());
+    emit("failed", {
+      message: explained ?? (error instanceof Error ? error.message : String(error)),
+    });
+  } finally {
+    producing = false;
+    await pump;
+    running = false;
+    if (open) response.end();
+  }
+}
+
+// ----------------------------------------------------------------- the chat
+
+/**
+ * One free form message, in and out over SSE.
+ *
+ * This is a SEPARATE endpoint from /api/run and fires a SEPARATE, differently
+ * shaped set of terminal events (chat_reply, chat_done rather than done), so
+ * nothing about /api/run's own event names or payloads changes. Everything in
+ * between (turn, reasoning, tool_call, tool_result, notice, notification) is
+ * the exact same event name and the exact same payload shape /api/run already
+ * sends, reusing the pacing table above and the browser's existing renderers.
+ *
+ * Reuses the SAME `running` guard as a scenario run, so the two can never
+ * overlap and fight over the one live TripState.
+ */
+async function streamChat(message: string, response: ServerResponse): Promise<void> {
+  const trimmed = message.trim();
+  if (trimmed.length === 0) {
+    sendJson(response, 400, { error: "Type something first." });
+    return;
+  }
+  if (running) {
+    sendJson(response, 409, { error: "A run is already in progress, wait for it to finish." });
+    return;
+  }
+  running = true;
+
+  response.writeHead(200, {
+    "Content-Type": "text/event-stream; charset=utf-8",
+    "Cache-Control": "no-cache, no-transform",
+    Connection: "keep-alive",
+    "X-Accel-Buffering": "no",
+  });
+
+  const queue: Array<{ type: string; data: unknown }> = [];
+  let producing = true;
+  let open = true;
+
+  response.on("close", () => {
+    open = false;
+  });
+
+  const emit = (type: string, data: unknown): void => {
+    queue.push({ type, data });
+  };
+
+  const pump = (async () => {
+    while (open && (producing || queue.length > 0)) {
+      const next = queue.shift();
+      if (next === undefined) {
+        await sleep(40);
+        continue;
+      }
+      response.write(`event: ${next.type}\ndata: ${JSON.stringify(next.data)}\n\n`);
+      await sleep(PACING_MS[next.type] ?? DEFAULT_PACING_MS);
+    }
+  })();
+
+  try {
+    const provider = providerName();
+    const missingKey =
+      (provider === "groq" && !hasGroqApiKey()) || (provider === "gemini" && !hasApiKey());
+    if (missingKey) {
+      const variable = provider === "groq" ? "GROQ_API_KEY" : "GEMINI_API_KEY";
+      throw new Error(
+        `${variable} is not set on the server, so the agent cannot reach the model. Add it to .env in the project root and restart.`,
+      );
+    }
+
+    const model = createModel(provider, {
+      // The only extra tool declaration set anyone ever passes. A scripted
+      // scenario run never sets this, so it keeps its original four tools.
+      declarations: CHAT_FUNCTION_DECLARATIONS,
+      onRateLimit: (waitMs, attempt) =>
+        emit("notice", {
+          text: `Rate limited by the provider, waiting ${(waitMs / 1000).toFixed(1)}s and retrying (attempt ${attempt}).`,
+        }),
+    });
+
+    const result = await runChatTurn({
+      model,
+      world: session.world,
+      state: session.state,
+      baseWorld: session.catalogue,
+      history: session.chatHistory,
+      userMessage: trimmed,
+      observer: {
+        onTurnStart: (index) => emit("turn", { index }),
+        onReasoning: (index, text) => emit("reasoning", { index, text }),
+        onToolCall: (name, args) => emit("tool_call", { name, args }),
+        onToolResult: (call) =>
+          emit("tool_result", {
+            name: call.name,
+            ok: call.outcome.ok,
+            reason: call.outcome.reason ?? null,
+            shortfall: call.outcome.shortfall ?? null,
+            summary: call.outcome.summary,
+            changedState: call.outcome.changedState,
+            trip: toTripView(call.outcome.world, call.outcome.state),
+          }),
+        onNotification: (text) => emit("notification", { message: text }),
+      },
+    });
+
+    // The one live pair, moved forward. No parallel state anywhere.
+    session.world = result.world;
+    session.state = result.state;
+    session.chatHistory = result.history;
+
+    emit("chat_reply", { text: result.reply, trip: toTripView(session.world, session.state) });
+    emit("chat_done", { toolCalls: result.toolCallCount, rejections: result.rejectionCount });
   } catch (error: unknown) {
     const explained = explainApiError(error, activeModelName());
     emit("failed", {

@@ -113,12 +113,19 @@ export interface GroqOptions {
    * than stuck.
    */
   onRateLimit?: (waitMs: number, attempt: number) => void;
+  /**
+   * Tools beyond the four prompt-2 ones. Omit this and behaviour is exactly
+   * what it always was: the scripted scenario run never sets it. Chat is the
+   * only caller that does, adding apply_disruption (see chatDeclarations.ts).
+   */
+  declarations?: FunctionDeclaration[];
 }
 
 export function createGroqModel(options: GroqOptions = {}): AgentModel {
   const apiKey = requireGroqApiKey();
   const model = groqModelName();
   const { onRateLimit } = options;
+  const tools = options.declarations === undefined ? OPENAI_TOOLS : toOpenAiTools(options.declarations);
 
   return {
     name: model,
@@ -127,7 +134,7 @@ export function createGroqModel(options: GroqOptions = {}): AgentModel {
       const body = JSON.stringify({
         model,
         messages: toOpenAiMessages(contents),
-        tools: OPENAI_TOOLS,
+        tools,
         tool_choice: "auto",
         temperature: TEMPERATURE,
       });

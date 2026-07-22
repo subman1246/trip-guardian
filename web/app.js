@@ -50,6 +50,10 @@ const els = {
   budgetTotal: document.getElementById("budget-total"),
   trace: document.getElementById("trace"),
   traceStatus: document.getElementById("trace-status"),
+
+  chatForm: document.getElementById("chat-form"),
+  chatInput: document.getElementById("chat-input"),
+  chatSubmit: document.getElementById("chat-submit"),
 };
 
 /** The scenario written to be refused. Flagged in the button row. */
@@ -640,6 +644,20 @@ function traceNotice(text) {
   addEntry(el("div", "entry entry-notice", text));
 }
 
+/** The traveller's own chat message. Drawn distinct from the agent's reasoning. */
+function traceChatUser(text) {
+  const box = el("div", "entry entry-chat-user");
+  box.append(el("span", "chat-who", "you"), el("div", null, text));
+  addEntry(box, { toRoot: true });
+}
+
+/** The agent's plain spoken reply, when it answered without filing a report. */
+function traceChatReply(text) {
+  const box = el("div", "entry entry-chat-reply");
+  box.append(el("span", "chat-who", "agent"), el("div", null, text));
+  addEntry(box, { toRoot: true });
+}
+
 /** The end of the run, and the thing the traveller would actually receive. */
 function traceReport(message) {
   settleTurn();
@@ -705,6 +723,8 @@ function setRunning(isRunning, label) {
   els.setupSubmit.disabled = isRunning;
   els.setupDays.disabled = isRunning;
   els.setupBudget.disabled = isRunning;
+  els.chatInput.disabled = isRunning;
+  els.chatSubmit.disabled = isRunning;
 
   for (const cell of els.scenarioButtons.children) {
     const button = cell.querySelector("button");
@@ -779,6 +799,57 @@ function finish(label) {
   setRunning(false, label);
 }
 
+/**
+ * Free form chat, before or after a scenario. This opens its OWN EventSource
+ * against /api/chat, a separate endpoint from /api/run, but reuses almost
+ * every renderer a scenario run already has: the same thinking state, the same
+ * reasoning and tool call and result cards, the same ACCEPTED/REJECTED styling.
+ * Unlike a scenario, chat APPENDS to the trace rather than clearing it, so the
+ * conversation and any earlier run read as one continuous story.
+ */
+function sendChatMessage(event) {
+  event.preventDefault();
+  if (running) return;
+
+  const text = els.chatInput.value.trim();
+  if (text.length === 0) return;
+
+  traceChatUser(text);
+  els.chatInput.value = "";
+  setRunning(true, "running");
+
+  stream = new EventSource(`/api/chat?message=${encodeURIComponent(text)}`);
+
+  const on = (name, handler) =>
+    stream.addEventListener(name, (event) => handler(JSON.parse(event.data)));
+
+  on("turn", (data) => traceTurn(data.index));
+  on("reasoning", (data) => traceReasoning(data.text));
+  on("tool_call", (data) => traceCall(data.name, data.args));
+  on("tool_result", (data) => traceResult(data));
+  on("notice", (data) => traceNotice(data.text));
+  on("notification", (data) => traceReport(data.message));
+  on("chat_reply", (data) => {
+    settleTurn();
+    traceChatReply(data.text);
+    applyTrip(data.trip);
+  });
+  on("chat_done", () => finish("idle"));
+  on("failed", (data) => {
+    settleTurn();
+    currentTurn = null;
+    addEntry(el("div", "entry entry-failed", data.message), { toRoot: true });
+    finish("failed");
+  });
+
+  stream.onerror = () => {
+    if (running) {
+      settleTurn();
+      finish("disconnected");
+    }
+  };
+}
+
 // ================================================================== boot
 
 async function boot() {
@@ -788,6 +859,7 @@ async function boot() {
   applyTrip(trip);
 
   els.setupForm.addEventListener("submit", submitSetup);
+  els.chatForm.addEventListener("submit", sendChatMessage);
   els.enterStudio.addEventListener("click", () => showPage("studio"));
   els.backToPlan.addEventListener("click", () => {
     if (running) return;

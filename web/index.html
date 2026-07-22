@@ -226,10 +226,21 @@
             </div>
             <div class="trace" id="trace" aria-live="polite">
               <p class="trace-empty">
-                Pick a scenario above. The disruption lands, the agent reasons, the tools
-                answer, and both panels on the left move as it works.
+                Pick a scenario above, or talk to the agent below. The disruption lands, the
+                agent reasons, the tools answer, and both panels on the left move as it works.
               </p>
             </div>
+
+            <form class="chat-bar" id="chat-form">
+              <input
+                class="chat-input"
+                id="chat-input"
+                type="text"
+                placeholder="Tell the agent something. The hotel just cancelled. You left Day 2 Morning empty, fix it."
+                autocomplete="off"
+              />
+              <button class="btn chat-send" id="chat-submit" type="submit">Send</button>
+            </form>
           </section>
         </main>
       </section>

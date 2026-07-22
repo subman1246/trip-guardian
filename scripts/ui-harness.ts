@@ -28,11 +28,14 @@
  * whole point is to exercise the real page.
  */
 
+import type { Content, Part } from "@google/genai";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { readFile } from "node:fs/promises";
 import { extname, join, normalize, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import type { AgentModel, ModelToolCall, ModelTurn } from "../src/agent/model.js";
+import { runChatTurn } from "../src/agent/chatLoop.js";
 import { CATEGORIES, type Category, type Option, type TripState, type World } from "../src/data/types.js";
 import { Session } from "../src/server/session.js";
 import { toDisruptionView, toSetupView, toTripView } from "../src/server/views.js";
@@ -135,6 +138,11 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
       url.searchParams.get("discrepancy") === "1",
       response,
     );
+    return;
+  }
+
+  if (path === "/api/chat") {
+    await streamScriptedChat(url.searchParams.get("message") ?? "", response);
     return;
   }
 
@@ -581,6 +589,271 @@ function richestDonor(state: TripState, to: Category, amount: number): Category 
     if (best === null || spare > state.budget.byCategory[best].remaining) best = category;
   }
   return best;
+}
+
+// -------------------------------------------------------------- the scripted chat
+
+/**
+ * The offline stand in for chat: same rules as the scripted scenario runner
+ * above. NOT model output, but every tool call it makes goes through the exact
+ * SAME runChatTurn and executeChatToolCall the real server uses, so every
+ * ACCEPTED, every REJECTED and every world mutation (including apply_disruption
+ * actually closing a venue or repricing an option) is genuinely computed. Only
+ * the DECISION of what to try, normally the model's job, is scripted here by
+ * matching a few keywords, so the whole chat plumbing (bounded history, the
+ * SSE events, the browser's rendering) can be proven with zero API calls.
+ *
+ * Reuses the SAME session the scenario runner uses, so a chat message and a
+ * fired scenario share one live TripState, exactly like the real server.
+ */
+async function streamScriptedChat(message: string, response: ServerResponse): Promise<void> {
+  const trimmed = message.trim();
+  if (trimmed.length === 0) {
+    sendJson(response, 400, { error: "Type something first." });
+    return;
+  }
+  if (running) {
+    sendJson(response, 409, { error: "A run is already in progress." });
+    return;
+  }
+  running = true;
+
+  response.writeHead(200, {
+    "Content-Type": "text/event-stream; charset=utf-8",
+    "Cache-Control": "no-cache, no-transform",
+    Connection: "keep-alive",
+    "X-Accel-Buffering": "no",
+  });
+
+  let open = true;
+  response.on("close", () => {
+    open = false;
+  });
+
+  const emit = async (type: string, data: unknown): Promise<void> => {
+    if (!open) return;
+    response.write(`event: ${type}\ndata: ${JSON.stringify(data)}\n\n`);
+    await sleep(PACING_MS[type] ?? DEFAULT_PACING_MS);
+  };
+
+  try {
+    const world = session.world;
+    const state = session.state;
+
+    const result = await runChatTurn({
+      model: createScriptedChatModel(),
+      world,
+      state,
+      baseWorld: session.catalogue,
+      history: session.chatHistory,
+      userMessage: trimmed,
+      observer: {
+        onTurnStart: (index) => void emit("turn", { index }),
+        onReasoning: (index, text) => void emit("reasoning", { index, text }),
+        onToolCall: (name, args) => void emit("tool_call", { name, args }),
+        onToolResult: (call) =>
+          void emit("tool_result", {
+            name: call.name,
+            ok: call.outcome.ok,
+            reason: call.outcome.reason ?? null,
+            shortfall: call.outcome.shortfall ?? null,
+            summary: call.outcome.summary,
+            changedState: call.outcome.changedState,
+            trip: toTripView(call.outcome.world, call.outcome.state),
+          }),
+        onNotification: (text) => void emit("notification", { message: text }),
+      },
+    });
+
+    session.world = result.world;
+    session.state = result.state;
+    session.chatHistory = result.history;
+
+    // Printed so the trimming rule can be checked by eye: this must stay flat
+    // however many messages are sent, never grow with the conversation.
+    console.log(`  [chat] history entries after this exchange: ${result.history.length}`);
+
+    await emit("chat_reply", { text: result.reply, trip: toTripView(session.world, session.state) });
+    await emit("chat_done", { toolCalls: result.toolCallCount, rejections: result.rejectionCount });
+  } catch (error: unknown) {
+    await emit("failed", { message: error instanceof Error ? error.message : String(error) });
+  } finally {
+    running = false;
+    if (open) response.end();
+  }
+}
+
+/**
+ * A handful of keyword triggers, just enough to walk the real tools through a
+ * disruption, a search plus rebook, and a refusal. Everything past the
+ * decision of WHICH tool to call next is the real executor, the real engine,
+ * the real budget maths.
+ */
+function createScriptedChatModel(): AgentModel {
+  let counter = 0;
+
+  return {
+    name: "offline stub, no model called",
+
+    async generate(contents: Content[]): Promise<ModelTurn> {
+      const last = contents[contents.length - 1];
+      const priorToolName = lastFunctionResponseName(last);
+
+      const scripted: ScriptedTurn = priorToolName
+        ? followUpFor(priorToolName, last)
+        : scriptFor(collectUserText(last));
+
+      const toolCalls: ModelToolCall[] = (scripted.toolCalls ?? []).map((call) => {
+        counter += 1;
+        return { id: `stub_${counter}`, name: call.name, args: call.args };
+      });
+
+      const parts: Part[] = [];
+      if (scripted.text.length > 0) parts.push({ text: scripted.text });
+      for (const call of toolCalls) {
+        // Always set above, just re-typed as optional by ModelToolCall's own shape.
+        parts.push({ functionCall: { id: call.id as string, name: call.name, args: call.args } });
+      }
+
+      return { text: scripted.text, toolCalls, content: { role: "model", parts } };
+    },
+  };
+}
+
+interface ScriptedTurn {
+  text: string;
+  toolCalls?: Array<{ name: string; args: Record<string, unknown> }>;
+}
+
+function collectUserText(content?: Content): string {
+  return (content?.parts ?? [])
+    .map((part) => part.text ?? "")
+    .join(" ")
+    .trim();
+}
+
+function lastFunctionResponseName(content?: Content): string | undefined {
+  for (const part of content?.parts ?? []) {
+    if (part.functionResponse?.name !== undefined) return part.functionResponse.name;
+  }
+  return undefined;
+}
+
+function lastFunctionResponsePayload(content?: Content): Record<string, unknown> | undefined {
+  for (const part of content?.parts ?? []) {
+    if (part.functionResponse?.response !== undefined) {
+      return part.functionResponse.response as Record<string, unknown>;
+    }
+  }
+  return undefined;
+}
+
+/** What the traveller said, turned into exactly one scripted decision. */
+function scriptFor(userText: string): ScriptedTurn {
+  const text = userText.toLowerCase();
+
+  if (/(hotel|stay|room)/.test(text) && /(cancel|closed|shut|no longer)/.test(text)) {
+    return {
+      text:
+        "You are telling me the room just fell through. I will make that real the same way a " +
+        "scripted disruption would, by closing whatever this trip has actually booked for the stay.",
+      toolCalls: [
+        {
+          name: "apply_disruption",
+          args: {
+            kind: "venue_closed",
+            timeSlot: "Trip",
+            category: "stay",
+            message: "{option} has shut its doors for emergency repairs, with no notice.",
+          },
+        },
+      ],
+    };
+  }
+
+  const slotMatch = /day\s*(\d)\s*(morning|afternoon|evening)/i.exec(userText);
+  const mentionsCancel = /(cancel|closed|shut|no longer|fell through)/.test(text);
+
+  // A named day slot plus a cancellation word means the traveller is
+  // describing damage to THAT slot, so it is made real with apply_disruption
+  // rather than searched, exactly the same distinction the live agent has to
+  // draw between "something just broke" and "please look at what is open."
+  if (slotMatch && mentionsCancel) {
+    const timeSlot = `Day ${slotMatch[1]} ${capitalize(slotMatch[2] ?? "")}`;
+    return {
+      text: `You are telling me ${timeSlot} just fell through. Making that real, the same way a scripted disruption would.`,
+      toolCalls: [
+        {
+          name: "apply_disruption",
+          args: {
+            kind: "activity_cancelled",
+            timeSlot,
+            category: "activity",
+            message: "{option} has been called off, with no notice.",
+          },
+        },
+      ],
+    };
+  }
+
+  if (/(empty|unfilled|nothing booked|fix it)/.test(text) || slotMatch) {
+    const timeSlot = slotMatch ? `Day ${slotMatch[1]} ${capitalize(slotMatch[2] ?? "")}` : undefined;
+    return {
+      text: timeSlot
+        ? `Looking at what is still open for ${timeSlot}.`
+        : "Let me see what is still open for the empty slot on this trip.",
+      toolCalls: [{ name: "search_alternatives", args: timeSlot ? { timeSlot } : {} }],
+    };
+  }
+
+  if (/(upgrade|suite|heritage|nicer room|best room)/.test(text)) {
+    return {
+      text: "You want the nicer room. Let me try booking it directly and see what the tool says.",
+      toolCalls: [{ name: "rebook_slot", args: { oldOptionId: "s2", newOptionId: "s3" } }],
+    };
+  }
+
+  return {
+    text:
+      "This offline stub only scripts a few phrasings (a cancelled room, an empty slot, an " +
+      "upgrade). Try one of those, or run the real server for genuine free form chat.",
+  };
+}
+
+/** After a tool call comes back, decide the next step from what actually happened. */
+function followUpFor(toolName: string, last?: Content): ScriptedTurn {
+  if (toolName === "apply_disruption") {
+    return { text: "Done. That is real now, the itinerary and the budget above both reflect it." };
+  }
+
+  if (toolName === "search_alternatives") {
+    const payload = lastFunctionResponsePayload(last);
+    const alternatives = (payload?.alternatives as Array<{ id: string; name: string }> | undefined) ?? [];
+    const pick = alternatives[0];
+    if (pick === undefined) {
+      return { text: "Nothing is open there. That slot has to stay empty, and I am telling you so rather than inventing a booking." };
+    }
+    return {
+      text: `${pick.name} is open and affordable. Booking it now.`,
+      toolCalls: [{ name: "rebook_slot", args: { oldOptionId: null, newOptionId: pick.id } }],
+    };
+  }
+
+  if (toolName === "rebook_slot") {
+    const payload = lastFunctionResponsePayload(last);
+    if (payload?.ok === false) {
+      return {
+        text: `That was refused: ${String(payload.summary ?? "the tool would not allow it")}. I am not going to force it, the budget is holding for a reason.`,
+      };
+    }
+    return { text: "Booked. The itinerary above reflects it." };
+  }
+
+  return { text: "Done, using the real tools." };
+}
+
+function capitalize(word: string): string {
+  return word.length === 0 ? word : word[0]!.toUpperCase() + word.slice(1);
 }
 
 // ------------------------------------------------------------------- plumbing

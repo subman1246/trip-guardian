@@ -11,15 +11,20 @@
  */
 
 import { activeModelName, providerName, type ProviderName } from "./config.js";
-import { createGeminiModel } from "./gemini.js";
+import { createGeminiModel, type GeminiOptions } from "./gemini.js";
 import { createGroqModel, type GroqOptions } from "./groq.js";
 import type { AgentModel } from "./model.js";
 
+/**
+ * Both providers' options are optional and additive (an extra tool list, a rate
+ * limit hook), so a caller that passes neither gets the exact behaviour it
+ * always got. Only chat passes `declarations`, since only chat adds a tool.
+ */
 export function createModel(
   provider: ProviderName = providerName(),
-  options: GroqOptions = {},
+  options: GroqOptions & GeminiOptions = {},
 ): AgentModel {
-  return provider === "groq" ? createGroqModel(options) : createGeminiModel();
+  return provider === "groq" ? createGroqModel(options) : createGeminiModel(options);
 }
 
 /** One line for the demo header, for example "groq / llama-3.3-70b-versatile". */

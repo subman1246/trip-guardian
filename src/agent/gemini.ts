@@ -6,7 +6,7 @@
  * in a trace, and never included in an error message.
  */
 
-import { GoogleGenAI, type Content } from "@google/genai";
+import { GoogleGenAI, type Content, type FunctionDeclaration } from "@google/genai";
 
 import { modelName, requireApiKey } from "./config.js";
 import { AGENT_FUNCTION_DECLARATIONS } from "./declarations.js";
@@ -19,10 +19,20 @@ import { SYSTEM_INSTRUCTION } from "./prompts.js";
  */
 const TEMPERATURE = 0.4;
 
-export function createGeminiModel(): AgentModel {
+export interface GeminiOptions {
+  /**
+   * Tools beyond the four prompt-2 ones. Omit this and behaviour is exactly
+   * what it always was: the scripted scenario run never sets it. Chat is the
+   * only caller that does, adding apply_disruption (see chatDeclarations.ts).
+   */
+  declarations?: FunctionDeclaration[];
+}
+
+export function createGeminiModel(options: GeminiOptions = {}): AgentModel {
   const apiKey = requireApiKey();
   const model = modelName();
   const ai = new GoogleGenAI({ apiKey });
+  const declarations = options.declarations ?? AGENT_FUNCTION_DECLARATIONS;
 
   return {
     name: model,
@@ -33,7 +43,7 @@ export function createGeminiModel(): AgentModel {
         contents,
         config: {
           systemInstruction: SYSTEM_INSTRUCTION,
-          tools: [{ functionDeclarations: AGENT_FUNCTION_DECLARATIONS }],
+          tools: [{ functionDeclarations: declarations }],
           // We run the loop ourselves so every call goes through the real tools
           // and lands in the visible trace.
           automaticFunctionCalling: { disable: true },

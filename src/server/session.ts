@@ -18,6 +18,8 @@
  * TripState, it swaps which immutable pair the session is pointing at.
  */
 
+import type { Content } from "@google/genai";
+
 import type { Disruption, TripState, World } from "../data/types.js";
 import { assessScenario, resolveDisruption, type ScenarioApplicability } from "../events/applicability.js";
 import { applyDisruption, getDisruption, loadDisruptions, type DisruptionOutcome } from "../events/engine.js";
@@ -46,6 +48,15 @@ export class Session {
   world: World;
   state: TripState;
   plan: TripPlan;
+
+  /**
+   * Chat's trimmed conversation, held here for the same reason world/state are:
+   * one session, one live pair, no parallel copy. Already bounded by
+   * chatLoop.ts's MAX_HISTORY_ENTRIES before it is ever written back here.
+   * Cleared whenever the trip itself resets, since a conversation about a trip
+   * that no longer exists is not worth replaying.
+   */
+  chatHistory: Content[] = [];
 
   constructor() {
     this.baseWorld = loadWorld();
@@ -92,6 +103,7 @@ export class Session {
   reset(): void {
     this.world = this.pristineWorld;
     this.state = this.pristineState;
+    this.chatHistory = [];
   }
 
   /**
